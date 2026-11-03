@@ -41,9 +41,9 @@ std::vector<std::uint8_t> zipFuel(std::vector<Member> files) {
 struct Edit {std::size_t at,size;std::string text;};
 std::smatch uniqueField(const std::string& text,const std::regex& expression) {
     std::sregex_iterator begin(text.begin(),text.end(),expression),end;
-    if(begin==end)throw std::runtime_error("原厂底盘定义缺少必要字段");
+    if(begin==end)throw std::runtime_error("original chassis definition is missing necessary fields");
     const auto result=*begin;
-    if(++begin!=end)throw std::runtime_error("原厂底盘定义含重复字段");
+    if(++begin!=end)throw std::runtime_error("original chassis definition contains repeated fields");
     return result;
 }
 }
@@ -54,18 +54,18 @@ bool fuelTankIsElectric(const std::string& originalPath) {
 bool validateFuelTankPowertrain(const FuelTankMod& mod,const std::vector<std::string>& enginePaths,std::string* error) {
     if(error)error->clear();
     if(enginePaths.size()!=1) {
-        if(error)*error="无法确认唯一发动机，请使用完整的原厂车辆配置。";
+        if(error)*error="Unable to confirm unique engine, please use complete original vehicle configuration.";
         return false;
     }
     const auto& path=enginePaths.front();
     if(mod.electric) {
         if(path=="/def/vehicle/truck/scania.s_2024e/engine/400kw.sii" ||
            path=="/def/vehicle/truck/scania.s_2024e/engine/450kw.sii")return true;
-        if(error)*error="斯堪尼亚电池扩容需要原厂 400 kW 或 450 kW 电动发动机；当前配置无法确认。";
+        if(error)*error="Scania battery expansion requires original 400 kW or 450 kW electric engine; current configuration cannot be confirmed.";
         return false;
     }
     if(path.find("kw.sii")!=std::string::npos || path.find("electric")!=std::string::npos || path.find("_2024e/")!=std::string::npos) {
-        if(error)*error="所选柴油底盘搭配电动发动机，无法按升扩容；请选择动力类型匹配的车辆。";
+        if(error)*error="is equipped with an electric engine and cannot be expanded by liters; please select a vehicle with matching power type.";
         return false;
     }
     return true;
@@ -73,20 +73,20 @@ bool validateFuelTankPowertrain(const FuelTankMod& mod,const std::vector<std::st
 bool buildFuelTankMod(const std::string& originalPath,int capacity,FuelTankMod* out,std::string* error) {
     if(error)error->clear();if(out)*out={};
     try {
-        if(!out)throw std::runtime_error("容量 Mod 输出为空");
-        if(std::size(kFuelTankDefinitions)==0)throw std::runtime_error("此构建未包含本地原厂底盘定义，请按 README 生成容量目录后重新构建。");
+        if(!out)throw std::runtime_error("capacity Mod output is empty");
+        if(std::size(kFuelTankDefinitions)==0)throw std::runtime_error("This build does not contain the local original factory chassis definition. Please generate the capacity directory according to README and rebuild again.");
         const FuelTankDefinition* definition=nullptr;
         for(const auto& item:kFuelTankDefinitions)if(originalPath==item.path){definition=&item;break;}
-        if(!definition)throw std::runtime_error("此底盘未收录；支持内置原厂柴油底盘及斯堪尼亚 S 2024 电动 4×2 底盘。");
-        const std::string unitName=definition->electric?"kWh":"升",unitSuffix=definition->electric?"kWh":"L";
-        if(capacity<100||capacity>10000)throw std::runtime_error("容量应在 100–10000 "+unitName+"之间");
+        if(!definition)throw std::runtime_error("This chassis is not included; supports built-in original diesel chassis and Scania S 2024 electric 4×2 chassis.");
+        const std::string unitName=definition->electric?"kWh":"Liter",unitSuffix=definition->electric?"kWh":"L";
+        if(capacity<100||capacity>10000)throw std::runtime_error("capacity should be 100–10000\nbetween "+unitName+"");
         const std::string source=definition->text;
         static const std::regex tankRe(R"((?:^|\n)[ \t]*tank_size[ \t]*:[ \t]*([0-9]+(?:\.[0-9]+)?)[ \t]*(?:#[^\r\n]*)?(?:\r?\n|$))");
         static const std::regex unitRe(R"(accessory_chassis_data[ \t]*:[ \t]*([a-zA-Z0-9_.]+))");
         static const std::regex nameRe("(?:^|\n)[ \t]*name[ \t]*:[ \t]*\"([^\"\r\n]*)\"");
         const auto tank=uniqueField(source,tankRe),unit=uniqueField(source,unitRe),name=uniqueField(source,nameRe);
         const auto stock=std::stod(tank[1].str());
-        if(capacity<=stock)throw std::runtime_error("目标容量必须大于原厂容量（"+tank[1].str()+" "+unitName+"）");
+        if(capacity<=stock)throw std::runtime_error("target capacity must be greater than the original factory capacity ("+tank[1].str()+" "+unitName+"）");
         std::uint64_t hash=14695981039346656037ull;
         const auto key=originalPath+"\n"+source+"\n"+std::to_string(capacity);
         for(unsigned char c:key){hash^=c;hash*=1099511628211ull;}

@@ -27,7 +27,7 @@ std::vector<SaveProfileGroup> groupSaveProfiles(const std::vector<SaveSlot>& slo
             group.profileDir=slot.profileDir;group.cloud=slot.cloud;
             group.name=W2U(slot.profileName);
             if(group.name.empty()) group.name=W2U(std::filesystem::path(slot.profileDir).filename().wstring());
-            if(group.name.empty()) group.name="未命名档案";
+            if(group.name.empty()) group.name="unnamed file";
             groups.push_back(std::move(group));
         }
         groups[inserted.first->second].slots.push_back((int)i);

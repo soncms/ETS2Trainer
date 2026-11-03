@@ -145,33 +145,33 @@ bool inflateBlockData(BitReader& br, const Huffman& lenH, const Huffman& distH,
     for (;;) {
         int sym = lenH.decode(br);
         if (sym < 0) {
-            if (err) *err = "解压失败：字面量/长度符号无效";
+            if (err) *err = "Decompression failed: Invalid literal/length symbol";
             return false;
         }
         if (sym < 256) {
-            if (limit && out.size() >= limit) { if (err) *err = "解压结果超过长度上限"; return false; }
+            if (limit && out.size() >= limit) { if (err) *err = "The decompression result exceeds the upper limit of length"; return false; }
             out.push_back((uint8_t)sym);
             continue;
         }
         if (sym == 256) return true;
         int li = sym - 257;
         if (li >= 29) {
-            if (err) *err = "解压失败：长度符号超出范围";
+            if (err) *err = "Decompression failed: length symbol out of range";
             return false;
         }
         size_t length = (size_t)kLenBase[li] + br.bits(kLenExtra[li]);
         int dsym = distH.decode(br);
         if (dsym < 0 || dsym >= 30) {
-            if (err) *err = "解压失败：距离符号无效";
+            if (err) *err = "Decompression failed: invalid distance sign";
             return false;
         }
         size_t distance = (size_t)kDistBase[dsym] + br.bits(kDistExtra[dsym]);
         if (distance > out.size()) {
-            if (err) *err = "解压失败：距离超出已输出数据";
+            if (err) *err = "Decompression failed: the distance exceeds the output data";
             return false;
         }
         size_t start = out.size() - distance;
-        if (limit && length > limit - out.size()) { if (err) *err = "解压结果超过长度上限"; return false; }
+        if (limit && length > limit - out.size()) { if (err) *err = "The decompression result exceeds the upper limit of length"; return false; }
         for (size_t i = 0; i < length; ++i) out.push_back(out[start + i]);
     }
 }
@@ -198,21 +198,21 @@ bool inflateRaw(const uint8_t* in, size_t inSize, std::vector<uint8_t>& out, std
         if (type == 0) {  // 未压缩块
             br.alignByte();
             if (br.pos + 4 > br.size) {
-                if (err) *err = "解压失败：存储块头不完整";
+                if (err) *err = "Decompression failed: storage block header is incomplete";
                 return false;
             }
             uint16_t len = (uint16_t)(in[br.pos] | (in[br.pos + 1] << 8));
             uint16_t nlen = (uint16_t)(in[br.pos + 2] | (in[br.pos + 3] << 8));
             br.pos += 4;
             if ((uint16_t)(len ^ 0xFFFF) != nlen) {
-                if (err) *err = "解压失败：存储块 NLEN 校验失败";
+                if (err) *err = "Decompression failure: storage block NLEN verification failed";
                 return false;
             }
             if (br.pos + len > br.size) {
-                if (err) *err = "解压失败：存储块数据不完整";
+                if (err) *err = "Decompression failed: storage block data is incomplete";
                 return false;
             }
-            if (limit && len > limit - out.size()) { if (err) *err = "解压结果超过长度上限"; return false; }
+            if (limit && len > limit - out.size()) { if (err) *err = "The decompression result exceeds the upper limit of length"; return false; }
             out.insert(out.end(), in + br.pos, in + br.pos + len);
             br.pos += len;
         } else if (type == 1) {
@@ -232,14 +232,14 @@ bool inflateRaw(const uint8_t* in, size_t inSize, std::vector<uint8_t>& out, std
             while (idx < lengths.size()) {
                 int sym = clH.decode(br);
                 if (sym < 0) {
-                    if (err) *err = "解压失败：码长符号无效";
+                    if (err) *err = "Decompression failed: code length symbol is invalid";
                     return false;
                 }
                 if (sym < 16) {
                     lengths[idx++] = (uint8_t)sym;
                 } else if (sym == 16) {
                     if (idx == 0) {
-                        if (err) *err = "解压失败：重复上次码长但无前值";
+                        if (err) *err = "Decompression failed: Repeat the last code length but no previous value";
                         return false;
                     }
                     uint8_t prev = lengths[idx - 1];
@@ -258,18 +258,18 @@ bool inflateRaw(const uint8_t* in, size_t inSize, std::vector<uint8_t>& out, std
             distH.build(lengths.data() + hlit, hdist);
             if (!inflateBlockData(br, lenH, distH, out, err, limit)) return false;
         } else {
-            if (err) *err = "解压失败：未知块类型";
+            if (err) *err = "Decompression failed: Unknown block type";
             return false;
         }
         if (br.err) {
-            if (err) *err = "解压失败：数据提前结束";
+            if (err) *err = "Decompression failed: data ended prematurely";
             return false;
         }
     }
     // BitReader reads only the bytes needed for each symbol. Unused bits in
     // the final byte are legal padding; unread whole bytes are not part of this stream.
     if (br.pos != br.size) {
-        if (err) *err = "解压失败：压缩流结束后存在多余数据";
+        if (err) *err = "Decompression failed: There is excess data after the compression stream ends";
         return false;
     }
     return true;
@@ -285,13 +285,13 @@ public:
     bool open(std::string* err) {
         NTSTATUS st = ::BCryptOpenAlgorithmProvider(&alg_, BCRYPT_AES_ALGORITHM, nullptr, 0);
         if (st < 0) {
-            if (err) *err = "BCryptOpenAlgorithmProvider 失败";
+            if (err) *err = "BCryptOpenAlgorithmProvider failed";
             return false;
         }
         st = ::BCryptSetProperty(alg_, BCRYPT_CHAINING_MODE, (PUCHAR)BCRYPT_CHAIN_MODE_CBC,
                                  sizeof(BCRYPT_CHAIN_MODE_CBC), 0);
         if (st < 0) {
-            if (err) *err = "BCryptSetProperty(CBC) 失败";
+            if (err) *err = "BCryptSetProperty(CBC) failed";
             return false;
         }
         return true;
@@ -311,14 +311,14 @@ public:
     bool decrypt(const uint8_t* iv, const uint8_t* data, size_t size, std::vector<uint8_t>& out,
                  std::string* err) {
         if (size == 0 || (size % 16) != 0) {
-            if (err) *err = "密文长度不是 16 的倍数";
+            if (err) *err = "The ciphertext length is not a multiple of 16";
             return false;
         }
         if (!key_) {
             NTSTATUS st = ::BCryptGenerateSymmetricKey(alg_, &key_, nullptr, 0, (PUCHAR)kSiiKey,
                                                        sizeof(kSiiKey), 0);
             if (st < 0) {
-                if (err) *err = "BCryptGenerateSymmetricKey 失败";
+                if (err) *err = "BCryptGenerateSymmetricKey failed";
                 return false;
             }
         }
@@ -329,7 +329,7 @@ public:
         NTSTATUS st = ::BCryptDecrypt(key_, (PUCHAR)data, (ULONG)size, nullptr, ivBuf, 16,
                                       out.data(), (ULONG)out.size(), &done, 0);
         if (st < 0) {
-            if (err) *err = fmt("BCryptDecrypt 失败: 0x%08X", (unsigned)st);
+            if (err) *err = fmt("BCryptDecrypt failed: 0x%08X", (unsigned)st);
             return false;
         }
         out.resize(done);
@@ -368,18 +368,18 @@ bool readSaveFileBounded(const std::wstring& path, std::vector<uint8_t>& out, st
     HANDLE file = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                                 FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE) {
-        if (err) *err = "打开存档文件失败（文件不存在或被占用）";
+        if (err) *err = "Failed to open the archive file (the file does not exist or is occupied)";
         return false;
     }
     LARGE_INTEGER size{};
     if (!::GetFileSizeEx(file, &size) || size.QuadPart < 0) {
         ::CloseHandle(file);
-        if (err) *err = "读取存档文件大小失败";
+        if (err) *err = "Failed to read archive file size";
         return false;
     }
     if ((uint64_t)size.QuadPart > kMaxEncryptedInputBytes) {
         ::CloseHandle(file);
-        if (err) *err = "存档文件超过输入上限（128MiB）";
+        if (err) *err = "The archive file exceeds the input limit (128MiB)";
         return false;
     }
     out.assign((size_t)size.QuadPart, 0);
@@ -390,7 +390,7 @@ bool readSaveFileBounded(const std::wstring& path, std::vector<uint8_t>& out, st
         if (!::ReadFile(file, out.data() + offset, want, &got, nullptr) || got == 0) {
             ::CloseHandle(file);
             out.clear();
-            if (err) *err = "读取存档文件失败（数据不完整）";
+            if (err) *err = "Failed to read archive file (data is incomplete)";
             return false;
         }
         offset += got;
@@ -469,18 +469,18 @@ bool decryptSave(const std::wstring& path, std::vector<uint8_t>& inner, DecryptI
     std::vector<uint8_t> raw;
     if (!readSaveFileBounded(path, raw, err)) return false;
     if (raw.empty()) {
-        if (err) *err = "存档文件为空";
+        if (err) *err = "archive file is empty";
         return false;
     }
     DecryptInfo local{};
     const std::string outer = detectFormat(raw);
     if (outer != "scs") {  // 非 ScsC：只接受已识别的明文格式
         if (outer == "unknown") {
-            if (err) *err = "未知存档格式（既不是 ScsC 密文也不属于已知明文格式）";
+            if (err) *err = "Unknown archive format (neither ScsC ciphertext nor known plaintext format)";
             return false;
         }
         if (raw.size() > outCap) {
-            if (err) *err = "明文超过输出长度上限";
+            if (err) *err = "Plain text exceeds the upper limit of output length";
             return false;
         }
         local.innerFormat = outer;
@@ -490,7 +490,7 @@ bool decryptSave(const std::wstring& path, std::vector<uint8_t>& inner, DecryptI
         return true;
     }
     if (raw.size() < 56) {
-        if (err) *err = "ScsC 文件过短（缺少 56 字节头）";
+        if (err) *err = "ScsC file too short (missing 56-byte header)";
         return false;
     }
     local.encrypted = true;
@@ -499,13 +499,13 @@ bool decryptSave(const std::wstring& path, std::vector<uint8_t>& inner, DecryptI
         local.declaredSize |= (uint64_t)raw[52 + (size_t)i] << (8 * i);
     }
     if (local.declaredSize > outCap) {
-        if (err) *err = "ScsC 声明明文长度超过输出上限";
+        if (err) *err = "ScsC declares that the plaintext length exceeds the output upper limit";
         return false;
     }
     const uint8_t* iv = raw.data() + 36;
     const size_t cipherSize = raw.size() - 56;
     if (cipherSize == 0 || (cipherSize % 16) != 0) {
-        if (err) *err = "密文长度不是 16 的倍数（密文被截断或补齐异常）";
+        if (err) *err = "The ciphertext length is not a multiple of 16 (the ciphertext is truncated or padded abnormally)";
         return false;
     }
     AesCbc aes;
@@ -519,17 +519,17 @@ bool decryptSave(const std::wstring& path, std::vector<uint8_t>& inner, DecryptI
     aes.close();
     // PKCS7：每个填充字节都必须等于填充长度。
     if (payload.empty()) {
-        if (err) *err = "密文解密结果为空（PKCS7 填充无效）";
+        if (err) *err = "The ciphertext decryption result is empty (PKCS7 padding is invalid)";
         return false;
     }
     const uint8_t pad = payload.back();
     if (pad < 1 || pad > 16 || (size_t)pad > payload.size()) {
-        if (err) *err = "PKCS7 填充长度无效";
+        if (err) *err = "PKCS7 padding length is invalid";
         return false;
     }
     for (size_t i = payload.size() - (size_t)pad; i < payload.size(); ++i) {
         if (payload[i] != pad) {
-            if (err) *err = "PKCS7 填充字节不一致";
+            if (err) *err = "PKCS7 padding bytes are inconsistent";
             return false;
         }
     }
@@ -540,57 +540,57 @@ bool decryptSave(const std::wstring& path, std::vector<uint8_t>& inner, DecryptI
         payload.size() >= 2 && ((payload[0] & 0x0Fu) == 0x08u || payload[0] == 0x78u);
     if (zlibCandidate) {
         if (payload.size() < 6) {
-            if (err) *err = "zlib 数据截断（缺少头部或 Adler32 尾）";
+            if (err) *err = "zlib data truncation (missing header or Adler32 tail)";
             return false;
         }
         const uint8_t cmf = payload[0];
         const uint8_t flg = payload[1];
         if ((cmf & 0x0Fu) != 0x08u) {
-            if (err) *err = "zlib 头 CM 不是 deflate(8)";
+            if (err) *err = "zlib header CM is not deflate(8)";
             return false;
         }
         if (((cmf >> 4) & 0x0Fu) > 7u) {
-            if (err) *err = "zlib 头 CINFO 超出 32K 窗口";
+            if (err) *err = "zlib header CINFO out of 32K window";
             return false;
         }
         if ((((uint32_t)cmf << 8) | flg) % 31u != 0u) {
-            if (err) *err = "zlib 头 FCHECK 校验失败";
+            if (err) *err = "zlib header FCHECK verification failed";
             return false;
         }
         if ((flg & 0x20u) != 0u) {
-            if (err) *err = "zlib 头 FDICT 预置字典不受支持";
+            if (err) *err = "zlib header FDICT preset dictionary is not supported";
             return false;
         }
         std::vector<uint8_t> plain;
         std::string zerr;
         if (!inflateRaw(payload.data() + 2, payload.size() - 6, plain, &zerr, outCap)) {
-            if (err) *err = zerr.empty() ? std::string("zlib 解压失败") : zerr;
+            if (err) *err = zerr.empty() ? std::string("zlib decompression failed") : zerr;
             return false;
         }
         const uint8_t* tail = payload.data() + payload.size() - 4;
         const uint32_t expected = ((uint32_t)tail[0] << 24) | ((uint32_t)tail[1] << 16) |
                                   ((uint32_t)tail[2] << 8) | (uint32_t)tail[3];
         if (adler32Of(plain.data(), plain.size()) != expected) {
-            if (err) *err = "zlib Adler32 校验不匹配（明文已损坏）";
+            if (err) *err = "zlib Adler32 checksum mismatch (plaintext is corrupted)";
             return false;
         }
         payload = std::move(plain);
         local.compressed = true;
     } else if (detectFormat(payload) == "unknown") {
-        if (err) *err = "解密后格式无法识别（既非已知明文也非 zlib）";
+        if (err) *err = "The decrypted format cannot be recognized (neither known plaintext nor zlib)";
         return false;
     }
     if (payload.size() > outCap) {
-        if (err) *err = "解密内容超过输出长度上限";
+        if (err) *err = "The decrypted content exceeds the upper limit of output length.";
         return false;
     }
     if ((uint64_t)payload.size() != local.declaredSize) {
-        if (err) *err = "明文长度与 ScsC 声明长度不一致";
+        if (err) *err = "The plaintext length is inconsistent with the ScsC declared length.";
         return false;
     }
     local.innerFormat = detectFormat(payload);
     if (local.innerFormat != "text" && local.innerFormat != "bsii" && local.innerFormat != "3nk") {
-        if (err) *err = "解密后内容不是已知明文格式（text/bsii/3nk）";
+        if (err) *err = "The decrypted content is not in known plaintext format (text/bsii/3nk)";
         return false;
     }
     local.innerSize = payload.size();
@@ -603,7 +603,7 @@ namespace {
 
 bool exportCanceled(const std::function<bool()>& canceled, std::string* error) {
     if (!canceled || !canceled()) return false;
-    if (error) *error = "导出已取消，未发布输出文件";
+    if (error) *error = "The export was canceled and the output file was not published.";
     return true;
 }
 
@@ -632,14 +632,14 @@ bool publishExport(const std::wstring& outPath, const uint8_t* data, size_t size
     if (exportCanceled(canceled, err)) return false;
     const size_t slash = outPath.find_last_of(L"\\/");
     if (slash == std::wstring::npos || slash + 1 >= outPath.size()) {
-        if (err) *err = "导出路径无效（缺少文件名）";
+        if (err) *err = "Invalid export path (missing file name)";
         return false;
     }
     const std::wstring dir = outPath.substr(0, slash);
     if (::GetFileAttributesW(outPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
         if (err) {
             const DWORD attr = ::GetFileAttributesW(outPath.c_str());
-            *err = (attr & FILE_ATTRIBUTE_DIRECTORY) ? "导出目标已存在且是目录" : "导出目标已存在，未覆盖";
+            *err = (attr & FILE_ATTRIBUTE_DIRECTORY) ? "The export target already exists and is a directory" : "The export target already exists and is not overwritten.";
         }
         return false;
     }
@@ -658,13 +658,13 @@ bool publishExport(const std::wstring& outPath, const uint8_t* data, size_t size
             const DWORD chunk = static_cast<DWORD>((std::min)(size - offset, size_t{1024 * 1024}));
             DWORD written = 0;
             if (!::WriteFile(temp.handle, data + offset, chunk, &written, nullptr) || written != chunk) {
-                if (err) *err = "写入导出文件失败";
+                if (err) *err = "Failed to write export file";
                 return false;
             }
             offset += written;
         }
         if (size && !::FlushFileBuffers(temp.handle)) {
-            if (err) *err = "刷新导出文件失败";
+            if (err) *err = "Failed to refresh export file";
             return false;
         }
         temp.close();
@@ -674,12 +674,12 @@ bool publishExport(const std::wstring& outPath, const uint8_t* data, size_t size
             return true;
         }
         if (::GetFileAttributesW(outPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
-            if (err) *err = "导出目标已存在，未覆盖";
+            if (err) *err = "The export target already exists and is not overwritten.";
             return false;
         }
         // 与异常目标竞争，换一个临时名重试；用尽后按写入失败处理。
     }
-    if (err) *err = "写入导出文件失败";
+    if (err) *err = "Failed to write export file";
     return false;
 }
 
@@ -705,14 +705,14 @@ bool exportReadableSii(const SaveSlot& slot, const std::wstring& outPath, Readab
     if (exportCanceled(canceled, err)) return false;
     const size_t cap = (std::min)(maxOutputBytes, size_t{128u * 1024u * 1024u});
     if (!cap) {
-        if (err) *err = "可读文本输出上限必须大于零";
+        if (err) *err = "The upper limit of readable text output must be greater than zero";
         return false;
     }
     ReadableExportInfo local;
     DecryptInfo dec;
     std::vector<uint8_t> inner;
     if (!decryptSave(slot.gameSii, inner, &dec, err, 128u * 1024u * 1024u)) {
-        if (err && err->empty()) *err = "读取或解密存档失败";
+        if (err && err->empty()) *err = "Failed to read or decrypt archive";
         if (info) *info = ReadableExportInfo{};
         return false;
     }
@@ -722,7 +722,7 @@ bool exportReadableSii(const SaveSlot& slot, const std::wstring& outPath, Readab
     std::string text;
     if (dec.innerFormat == "text") {
         if (inner.size() > cap) {
-            if (err) *err = "可读文本超过输出长度上限";
+            if (err) *err = "Readable text exceeds the upper limit of output length";
             return false;
         }
         if (!publishExport(outPath, inner.data(), inner.size(), canceled, err)) return false;
@@ -734,7 +734,7 @@ bool exportReadableSii(const SaveSlot& slot, const std::wstring& outPath, Readab
             uint32_t version = 0;
             std::memcpy(&version, inner.data() + 4, sizeof(version));
             if (version != 3) {
-                if (err) *err = "暂不支持 BSII v" + std::to_string(version) + "，目前仅支持 v3";
+                if (err) *err = "currently does not support BSII v" + std::to_string(version) + ", currently only supports v3";
                 return false;
             }
         }
@@ -742,14 +742,14 @@ bool exportReadableSii(const SaveSlot& slot, const std::wstring& outPath, Readab
         std::string derr;
         if (!decodeBsiiText(inner, &text, &derr, canceled, cap, &stats)) {
             if (exportCanceled(canceled, err)) return false;
-            if (err) *err = derr.empty() ? std::string("BSII 文本转换失败")
-                                         : ("BSII 文本转换失败：" + derr);
+            if (err) *err = derr.empty() ? std::string("BSII text conversion failed")
+                                         : ("BSII text conversion failed:" + derr);
             if (info) *info = ReadableExportInfo{};
             return false;
         }
         local.unitCount = stats.unitCount;
     } else {
-        if (err) *err = "该格式暂不支持可读导出，请使用“解密导出选中”保留原格式";
+        if (err) *err = "This format does not currently support readable export. Please use \"Decrypt Export Selected\" to retain the original format.";
         if (info) *info = ReadableExportInfo{};
         return false;
     }
@@ -845,16 +845,16 @@ std::wstring decodeProfileName(const std::wstring& folder) {
 }
 
 std::string describeFormat(const std::string& fmt) {
-    if (fmt == "scs") return "加密(ScsC)";
-    if (fmt == "text") return "明文(SiiNunit)";
-    if (fmt == "bsii") return "二进制(BSII)";
-    if (fmt == "3nk") return "旧版加密(3nK)";
-    return "未知";
+    if (fmt == "scs") return "Encryption (ScsC)";
+    if (fmt == "text") return "plain text (SiiNunit)";
+    if (fmt == "bsii") return "Binary (BSII)";
+    if (fmt == "3nk") return "old version encryption (3nK)";
+    return "unknown";
 }
 
 std::string makeLabel(const SaveSlot& s) {
     return fmt("%s / %s [%s]", W2U(s.profileName).c_str(), W2U(s.slotName).c_str(),
-               s.cloud ? "Steam云" : "本地");
+               s.cloud ? "Steam Cloud" : "local");
 }
 
 }  // namespace
@@ -1108,7 +1108,7 @@ void forEachValueLine(const std::string& text, Fn&& fn) {
 bool readTextValues(const std::wstring& path, TextValues* out, std::string* err) {
     std::vector<uint8_t> bytes;
     if (!readFileBytes(path, bytes)) {
-        if (err) *err = "读取存档失败";
+        if (err) *err = "Failed to read archive";
         return false;
     }
     std::string text(bytes.begin(), bytes.end());
@@ -1132,7 +1132,7 @@ bool patchTextSave(const std::wstring& path, bool setMoney, int64_t money, bool 
                    int64_t experience, std::string* err) {
     std::vector<uint8_t> bytes;
     if (!readFileBytes(path, bytes)) {
-        if (err) *err = "读取存档失败";
+        if (err) *err = "Failed to read archive";
         return false;
     }
     std::string text(bytes.begin(), bytes.end());
@@ -1162,7 +1162,7 @@ bool patchTextSave(const std::wstring& path, bool setMoney, int64_t money, bool 
     });
 
     if (edits.empty()) {
-        if (err) *err = "没有在该存档中找到可修改的字段（可能不是标准明文存档）";
+        if (err) *err = "No modifiable fields found in this archive (may not be a standard plaintext archive)";
         return false;
     }
     // 从后往前替换，避免前面的修改影响后面的偏移
@@ -1173,10 +1173,10 @@ bool patchTextSave(const std::wstring& path, bool setMoney, int64_t money, bool 
     }
     std::vector<uint8_t> outBytes(text.begin(), text.end());
     if (!writeFileBytes(path, outBytes)) {
-        if (err) *err = "写入存档失败";
+        if (err) *err = "Failed to write archive";
         return false;
     }
-    logLine(fmt("明文存档已修改 %d 处数值", (int)edits.size()));
+    logLine(fmt("plain text archive has modified the value at %d", (int)edits.size()));
     return true;
 }
 
@@ -1267,7 +1267,7 @@ std::vector<std::wstring> splitSemi(const std::string& text) {
 std::wstring backupSlot(const SaveSlot& slot, const char* label, std::string* err) {
     std::wstring root = backupRoot();
     if (!ensureDirRecursive(root)) {
-        if (err) *err = "创建备份目录失败";
+        if (err) *err = "Failed to create backup directory";
         return L"";
     }
     const std::wstring base = root + L"\\" + nowStamp() + L"_" + safeName(slot.profileName) +
@@ -1277,11 +1277,11 @@ std::wstring backupSlot(const SaveSlot& slot, const char* label, std::string* er
         dir = base + fmtW(L"_%02d", suffix);
     }
     if (isDir(dir)) {
-        if (err) *err = "创建唯一备份目录失败";
+        if (err) *err = "Failed to create unique backup directory";
         return L"";
     }
     if (!ensureDirRecursive(dir)) {
-        if (err) *err = "创建备份目录失败";
+        if (err) *err = "Failed to create backup directory";
         return L"";
     }
     // 先创建目录，再写游戏标签，避免每次首次备份都因目录不存在而失败。
@@ -1295,18 +1295,18 @@ std::wstring backupSlot(const SaveSlot& slot, const char* label, std::string* er
             std::fclose(f);
         }
         if (!tagOk) {
-            if (err) *err = "备份失败：无法写入游戏标签，已中止（避免产生无归属备份）";
+            if (err) *err = "Backup failed: Unable to write game tag, aborted (to avoid unowned backup)";
             return L"";
         }
     }
     std::wstring filesDir = dir + L"\\files";
     if (!ensureDirRecursive(filesDir)) {
-        if (err) *err = "创建备份子目录失败";
+        if (err) *err = "Failed to create backup subdirectory";
         return L"";
     }
     const std::vector<std::wstring> sourceFiles = listFiles(slot.slotDir);
     if (sourceFiles.empty()) {
-        if (err) *err = "备份失败：存档目录里没有文件";
+        if (err) *err = "Backup failed: There are no files in the archive directory";
         return L"";
     }
     std::vector<std::wstring> copied;
@@ -1315,7 +1315,7 @@ std::wstring backupSlot(const SaveSlot& slot, const char* label, std::string* er
         std::wstring dst = filesDir + L"\\" + f;
         if (!::CopyFileW(src.c_str(), dst.c_str(), FALSE)) {
             if (err) {
-                *err = fmt("备份失败：无法复制 %s（Win32 错误码 %lu）", W2U(f).c_str(),
+                *err = fmt("Backup failed: Unable to copy %s (Win32 error code %lu)", W2U(f).c_str(),
                            (unsigned long)::GetLastError());
             }
             return L"";
@@ -1336,7 +1336,7 @@ std::wstring backupSlot(const SaveSlot& slot, const char* label, std::string* er
     }
     ini += "\n";
     if (!writeFileBytes(dir + L"\\backup.ini", std::vector<uint8_t>(ini.begin(), ini.end()))) {
-        if (err) *err = "备份文件已复制，但写入 backup.ini 失败";
+        if (err) *err = "The backup file was copied, but writing to backup.ini failed";
         return L"";
     }
     return dir;
@@ -1381,8 +1381,8 @@ bool restoreBackup(const BackupInfo& info, std::string* err) {
     const std::wstring currentGame = U2W(gameKey(selectedGame()));
     if (backupGame != currentGame) {
         if (err) {
-            *err = fmt("该备份属于%s，当前选择的是%s，已拒绝恢复（备份按游戏隔离）",
-                       backupGame == L"ets2" ? "欧卡2" : "美卡",
+            *err = fmt("The backup belongs to %s, the current selection is %s, and the restoration has been refused (the backup is isolated by game)",
+                       backupGame == L"ets2" ? "ETS2" : "ATS",
                        selectedGameDescriptor().shortName);
         }
         return false;
@@ -1400,25 +1400,25 @@ bool restoreBackup(const BackupInfo& info, std::string* err) {
             }
         }
         if (!underGameRoot) {
-            if (err) *err = "该备份的来源路径不属于当前游戏（文档或云存档），已拒绝恢复";
+            if (err) *err = "The source path of this backup does not belong to the current game (document or cloud archive), and the restore has been refused.";
             return false;
         }
     }
     if (!isDir(info.filesDir)) {
-        if (err) *err = "备份文件目录不存在";
+        if (err) *err = "The backup file directory does not exist";
         return false;
     }
     if (info.originalDir.empty()) {
-        if (err) *err = "该备份里没有记录原始存档位置";
+        if (err) *err = "The original save location is not recorded in this backup";
         return false;
     }
     if (!ensureDirRecursive(info.originalDir)) {
-        if (err) *err = "创建目标存档目录失败";
+        if (err) *err = "Failed to create target archive directory";
         return false;
     }
     const std::vector<std::wstring> files = listFiles(info.filesDir);
     if (files.empty()) {
-        if (err) *err = "还原失败：备份中没有文件";
+        if (err) *err = "Restore failed: No files in backup";
         return false;
     }
     int copied = 0;
@@ -1427,14 +1427,14 @@ bool restoreBackup(const BackupInfo& info, std::string* err) {
         std::wstring dst = info.originalDir + L"\\" + f;
         if (!::CopyFileW(src.c_str(), dst.c_str(), FALSE)) {
             if (err) {
-                *err = fmt("还原失败：无法复制 %s（Win32 错误码 %lu）", W2U(f).c_str(),
+                *err = fmt("Restore failed: Unable to copy %s (Win32 error code %lu)", W2U(f).c_str(),
                            (unsigned long)::GetLastError());
             }
             return false;
         }
         ++copied;
     }
-    logLine(fmt("已还原 %d 个文件到 %s", copied, W2U(info.originalDir).c_str()));
+    logLine(fmt("Restored %d files to %s", copied, W2U(info.originalDir).c_str()));
     return true;
 }
 
@@ -1528,12 +1528,12 @@ bool listMapCities(const std::wstring& savePath, std::vector<std::string>* citie
     DecryptInfo info;
     if (!decryptSave(savePath, inner, &info, error)) return false;
     if (inner.empty()) {
-        if (error) *error = "存档内容为空";
+        if (error) *error = "archive content is empty";
         return false;
     }
     std::vector<std::string> found = extractMapCities(inner);
     if (found.empty()) {
-        if (error) *error = "存档里没有找到城市名（可能不是欧卡2 的地图存档）";
+        if (error) *error = "The city name was not found in the archive (it may not be the map archive of ETS2)";
         return false;
     }
     if (cities) *cities = std::move(found);

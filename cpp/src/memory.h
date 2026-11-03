@@ -167,7 +167,7 @@ private:
     std::atomic<uint64_t> blocked_{0};
     mutable std::mutex guardMutex_;
     WriteGuard guard_;
-    std::string blockedReason_ = "未启用";
+    std::string blockedReason_ = "not enabled";
 };
 
 }  // namespace ets2

@@ -263,10 +263,10 @@ std::vector<TunerTestItem> runEconomyLocateTests() {
         writeLocatedMoney(app, false);
         const bool moneyBlocked = moneyValue() == moneyBefore &&
                                   app.locatedMoneyAddress != 0 &&
-                                  app.locateStatus.find("拒绝") != std::string::npos;
+                                  app.locateStatus.find("denied") != std::string::npos;
         writeLocatedXp(app, false);
         const bool xpBlocked = xpValue() == xpBefore && app.locatedXpAddress != 0 &&
-                               app.locateStatus.find("拒绝") != std::string::npos;
+                               app.locateStatus.find("denied") != std::string::npos;
 
         // 2) 状态未知（无法确认）→ 同样拦截（不得偷偷放宽）
         setWriteGateOverride([]() { return std::string("无法确认联机状态（Convoy 检测已开启）"); });
@@ -290,7 +290,7 @@ std::vector<TunerTestItem> runEconomyLocateTests() {
         const int64_t moneyBeforeScan = moneyValue();
         writeLocatedMoney(app, false);
         const bool scanBlocked = moneyValue() == moneyBeforeScan &&
-                                 app.locateStatus.find("拒绝") != std::string::npos;
+                                 app.locateStatus.find("denied") != std::string::npos;
         setWriteGateOverride(nullptr);
 
         const bool ok = attached && moneyBlocked && xpBlocked && unknownBlocked && allowedWrite &&
@@ -316,7 +316,7 @@ std::vector<TunerTestItem> runEconomyLocateTests() {
         int32_t xpAfter = 0;
         mem.read(app.locatedXpAddress, &xpAfter, sizeof(xpAfter));
         const bool ok = attached && xpAfter == xpNow && app.locatedXpAddress != 0 &&
-                        app.locateStatus.find("定位结果保留") != std::string::npos;
+                        app.locateStatus.find("positioning result is retained") != std::string::npos;
         add("越界经验目标：不清除定位结果也不写入", ok,
             fmt("地址保留=%d 值未变=%d 状态=%s", (int)(app.locatedXpAddress != 0),
                 (int)(xpAfter == xpNow), app.locateStatus.c_str()));

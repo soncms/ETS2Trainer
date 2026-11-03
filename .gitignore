@@ -45,3 +45,9 @@ cpp/vendor/imgui-1.92.9/docs/
 cpp/vendor/imgui-1.92.9/examples/
 cpp/vendor/imgui-1.92.9/misc/
 cpp/vendor/imgui-1.92.9/.github/
+
+# Local research, packages and recovery credentials
+/work/
+/outputs/
+engine_state*
+logs/

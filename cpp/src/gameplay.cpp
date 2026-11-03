@@ -8,9 +8,9 @@ namespace {
 
 // 索引顺序必须与 GameId 一致。
 const GameDescriptor kDescriptors[] = {
-    {GameId::Ets2, "ets2", "Euro Truck Simulator 2", "欧卡2", L"eurotrucks2.exe",
+    {GameId::Ets2, "ets2", "Euro Truck Simulator 2", "ETS2", L"eurotrucks2.exe",
      "Euro Truck Simulator 2", "227300", 1u, true},
-    {GameId::Ats, "ats", "American Truck Simulator", "美卡", L"amtrucks.exe",
+    {GameId::Ats, "ats", "American Truck Simulator", "ATS", L"amtrucks.exe",
      "American Truck Simulator", "270880", 2u, true},
 };
 
@@ -71,10 +71,10 @@ bool supportsVerifiedStructures(GameId id) { return gameDescriptor(id).verifiedL
 std::string structuralWriteBlockReason() {
     const GameDescriptor& d = selectedGameDescriptor();
     if (d.verifiedLayouts) return std::string();
-    return std::string("美卡布局尚未验证：") + d.shortName +
-           " 的固定地址与结构偏移未按本版本核对，已拒绝结构化写入"
-           "（现金/经验结构化定位、固定油量、车辆无损、动力调节）。"
-           "手动扫描、存档编辑与控制台输入仍可使用。";
+    return std::string("ATS layout has not yet been verified:\nThe fixed address and structure offset of") + d.shortName +
+           " are not checked according to this version, and structured writing has been rejected."
+           "(cash/experience structured positioning, fixed oil volume, no damage to the vehicle, power adjustment)."
+           "manual scanning, archive editing and console input are still available.";
 }
 
 }  // namespace ets2

@@ -247,25 +247,27 @@ bool readTransmissionSignature(const ProcessMemory& memory, uint64_t address, fl
 bool locateEngineTarget(const ProcessMemory& memory, uint64_t context, EngineTarget* target,
                         std::string* error) {
     if (!memory.isOpen()) {
-        if (error) *error = "游戏进程尚未附加";
+        if (error) *error = "The game process has not been attached yet";
         return false;
     }
     if (!isCanonical(context)) {
-        if (error) *error = "玩家上下文无效";
+        if (error) *error = "Player context is invalid";
         return false;
     }
     uint64_t imageBase = 0;
-    if (selectedGame() == GameId::Ats && !verifyGameLayout(memory, &imageBase, error)) return false;
+    const LayoutProfile* matchedProfile = nullptr;
+    if (selectedGame() == GameId::Ats &&
+        !verifyGameLayout(memory, &imageBase, error, &matchedProfile)) return false;
     uint64_t container = 0;
     if (!memory.read(context + kContextToAccessoryData, &container, sizeof(container)) ||
         !isCanonical(container)) {
-        if (error) *error = "读取附属总成数据容器失败";
+        if (error) *error = "Failed to read accessory assembly data container";
         return false;
     }
     std::vector<uint8_t> window((size_t)kParentWindow, 0);
     size_t got = 0;
     if (!memory.read(container, window.data(), window.size(), &got) || got < 16) {
-        if (error) *error = "读取附属总成数据容器内容失败";
+        if (error) *error = "Failed to read the contents of the accessory assembly data container";
         return false;
     }
 
@@ -279,7 +281,7 @@ bool locateEngineTarget(const ProcessMemory& memory, uint64_t context, EngineTar
         if (selectedGame() == GameId::Ats) {
             uint64_t vtable = 0;
             if (!memory.read(pointer, &vtable, sizeof(vtable)) ||
-                vtable != imageBase + layoutProfile(GameId::Ats).engineVtableRva) continue;
+                vtable != imageBase + matchedProfile->engineVtableRva) continue;
         }
         float torque = 0.0f, idle = 0.0f, limit = 0.0f, neutral = 0.0f, resistance = 0.0f;
         if (readEngineSignature(memory, pointer, &torque, &idle, &limit, &neutral, &resistance)) {
@@ -304,13 +306,13 @@ bool locateEngineTarget(const ProcessMemory& memory, uint64_t context, EngineTar
 
     if (engineMatches.empty()) {
         if (error) {
-            *error = fmt("容器内没有符合发动机签名的对象（请进入驾驶界面后重试）");
+            *error = fmt("There is no object matching the engine signature in the container (please try again after entering the driving interface)");
         }
         return false;
     }
     if (engineMatches.size() > 1) {
         if (error) {
-            *error = fmt("容器内匹配到 %d 个发动机数据对象，已拒绝使用（无法唯一确定）",
+            *error = fmt("Found %d matching engine objects; cannot choose a unique target.",
                          (int)engineMatches.size());
         }
         return false;
@@ -336,13 +338,13 @@ bool resolvePlayerContext(ProcessMemory& memory, DWORD pid, uint64_t* context,
     VehicleLocker locker;
     std::string bindError;
     if (!locker.bind(&memory, pid, &bindError)) {
-        if (error) *error = "车辆版本指纹未通过：" + bindError;
+        if (error) *error = "Vehicle build verification failed: " + bindError;
         return false;
     }
     VehicleAddresses addresses;
     TelemetrySnapshot telemetry;
     if (!locker.probe(&addresses, &telemetry, &bindError)) {
-        if (error) *error = "无法定位当前车辆：" + bindError;
+        if (error) *error = "Cannot locate the current vehicle: " + bindError;
         return false;
     }
     *context = addresses.context;
@@ -447,7 +449,7 @@ bool engineValuesPlausible(const EngineFieldValues& values) {
 
 bool GameEngineResolver::resolve(uint64_t* engineObject, std::string* error) {
     if (!memory_ || !memory_->isOpen()) {
-        if (error) *error = "游戏进程尚未附加";
+        if (error) *error = "The game process has not been attached yet";
         return false;
     }
     uint64_t context = 0;
@@ -455,7 +457,7 @@ bool GameEngineResolver::resolve(uint64_t* engineObject, std::string* error) {
     EngineTarget target;
     if (!locateEngineTarget(*memory_, context, &target, error)) return false;
     if (target.engineMatches != 1) {
-        if (error) *error = fmt("发动机数据对象命中 %d 个，已拒绝写入", target.engineMatches);
+        if (error) *error = fmt("Found %d engine objects; write refused.", target.engineMatches);
         return false;
     }
     *engineObject = target.engineData;
@@ -487,8 +489,8 @@ void EngineTuner::attach(std::unique_ptr<EngineMemory> memory,
     guard_ = std::move(guard);
     guardCheckedAt_ = 0;
     // 注意：不在这里清空 activeObject_ / objects_，否则「已经放大的旧对象」会失去恢复记录。
-    setStatusLocked(active_ ? "已重新绑定游戏进程，动力调节继续保持"
-                            : "已绑定游戏进程，动力调节待启用");
+    setStatusLocked(active_ ? "Reattached to game; engine tuning remains active"
+                            : "Attached to game; engine tuning is off");
 }
 
 void EngineTuner::detach() {
@@ -506,8 +508,8 @@ void EngineTuner::detach() {
     resolver_.reset();
     guard_ = nullptr;
     if (hadRecords) bumpRevisionLocked();  // 待恢复记录集合可能已变化
-    setStatusLocked(objects_.empty() ? "已分离：动力调节已关闭"
-                                     : "已分离：原值未确认恢复，恢复记录仍保留");
+    setStatusLocked(objects_.empty() ? "Detached; engine tuning is off"
+                                     : "Detached; restoration unconfirmed, recovery records retained");
 }
 
 void EngineTuner::restoreAndDetach() {
@@ -525,7 +527,7 @@ void EngineTuner::restoreAndDetach() {
     if (target) {
         if (!memory_ || !memory_->usable()) {
             keepRecord = true;
-            detail = "游戏进程不可访问，原值未确认恢复";
+            detail = "Game process unavailable; restoration unconfirmed";
         } else {
             const RestoreOutcome outcome = restoreObjectLocked(target, &detail);
             keepRecord = outcome == RestoreOutcome::Failed;
@@ -546,8 +548,8 @@ void EngineTuner::restoreAndDetach() {
     resolver_.reset();
     guard_ = nullptr;
     bumpRevisionLocked();  // 恢复成败 / 待恢复记录集合发生变化
-    setStatusLocked(keepRecord ? "原值未恢复，已保留恢复记录：" + detail
-                               : "已停止动力调节" + (detail.empty() ? "" : "：" + detail));
+    setStatusLocked(keepRecord ? "Original values not restored; recovery records retained: " + detail
+                               : "Engine tuning stopped" + (detail.empty() ? "" : "：" + detail));
 }
 
 bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
@@ -557,11 +559,11 @@ bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
     }
     std::lock_guard<std::mutex> lock(mutex_);
     if (!memory_ || !memory_->usable()) {
-        if (error) *error = "尚未附加到游戏进程";
+        if (error) *error = "Not attached to game";
         return false;
     }
     if (!std::isfinite(scale) || scale < kMinScale || scale > kMaxScale) {
-        if (error) *error = "动力倍率超出允许范围（0.9–3.0）";
+        if (error) *error = "Power multiplier is outside the allowed range (0.9-3.0)";
         return false;
     }
     if (tunerClose(scale, 1.0f, 0.0001f) && !raiseLimit) {
@@ -576,10 +578,10 @@ bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
         if (!hadActive && !remoteCreds_.empty()) {
             // 没有任何对象可恢复，却还存在未核对的导入记录 → 不得虚报成功
             if (error) {
-                *error = fmt("上次运行的恢复记录尚未核对（共 %d 条），已保留",
+                *error = fmt("Recovery records from the previous session (%d) are unverified and retained",
                              (int)remoteCreds_.size());
             }
-            setStatusLocked("动力调节已关闭；上次运行的恢复记录尚未核对，已保留");
+            setStatusLocked("Engine tuning is off; previous recovery records are unverified and retained");
             return false;
         }
         return ok;
@@ -597,10 +599,10 @@ bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
         std::string restoreDetail;
         if (activeObject_) {
             restoreActiveLocked(false, &restoreDetail);
-            if (!restoreDetail.empty()) applyError += "；旧对象回滚情况：" + restoreDetail;
+            if (!restoreDetail.empty()) applyError += "; previous object rollback: " + restoreDetail;
         }
         if (error) *error = applyError;
-        setStatusLocked("动力调节未生效：" + applyError);
+        setStatusLocked("Engine tuning not applied: " + applyError);
         return false;
     }
     active_ = true;
@@ -624,19 +626,19 @@ bool EngineTuner::release(std::string* error) {
             // 还没有核对/恢复过任何对象：不能虚报「已恢复原厂」，记录必须保留，
             // 否则下一次启动会把上次的放大值当成原厂值再乘倍率。
             if (error) {
-                *error = fmt("上次运行的恢复记录尚未核对（共 %d 条，未对任何对象写入或核对），已保留",
+                *error = fmt("The recovery records of the last run have not been verified (a total of %d records, no objects have been written or verified) and have been retained.",
                              (int)remoteCreds_.size());
             }
-            setStatusLocked("动力调节已关闭；上次运行的恢复记录尚未核对，已保留（不会把放大值当原厂值）");
+            setStatusLocked("Power adjustment has been turned off; the recovery record of the last run has not been verified and has been retained (the amplification value will not be regarded as the original factory value)");
             return false;
         }
         if (error) error->clear();
-        setStatusLocked("动力调节已关闭");
+        setStatusLocked("Power adjustment is turned off");
         return true;
     }
     const bool ok = restoreActiveLocked(true, error);
     bumpRevisionLocked();  // 恢复成功或失败：待恢复记录状态变化
-    setStatusLocked(ok ? "已恢复原厂动力" : ("已关闭动力调节（" + (error ? *error : std::string()) + "）"));
+    setStatusLocked(ok ? "has restored its original power" : ("Power adjustment is turned off (" + (error ? *error : std::string()) + "）"));
     return ok;
 }
 
@@ -653,14 +655,14 @@ bool EngineTuner::maintenanceLocked(std::string* error) {
     if (!memory_ || !memory_->usable()) {
         active_ = false;
         activeObject_ = 0;
-        setStatusLocked("动力调节已停止：游戏进程已关闭");
-        if (error) *error = "游戏进程已关闭";
+        setStatusLocked("Power adjustment has stopped: the game process has been closed");
+        if (error) *error = "The game process has been closed";
         return false;
     }
     std::string applyError;
     if (!applyLocked(scale_, raiseLimit_, &applyError)) {
         // 联机闸门自行设置状态并关闭 active_；不要把还原失败信息覆盖为泛化暂停。
-        if (active_) setStatusLocked("动力调节已暂停：" + applyError);
+        if (active_) setStatusLocked("Power adjustment has been suspended:" + applyError);
         if (error) *error = applyError;
         return false;
     }
@@ -672,7 +674,7 @@ bool EngineTuner::maintenanceLocked(std::string* error) {
 bool EngineTuner::applyLocked(float scale, bool raiseLimit, std::string* error) {
     guardStopped_ = false;
     if (!memory_ || !memory_->usable()) {
-        if (error) *error = "尚未附加到游戏进程";
+        if (error) *error = "Not attached to game";
         return false;
     }
 
@@ -691,11 +693,11 @@ bool EngineTuner::applyLocked(float scale, bool raiseLimit, std::string* error) 
             activeObject_ = 0;
             if (hadActive) bumpRevisionLocked();  // 活动对象被移除 / 恢复状态变化
             if (outcome == RestoreOutcome::Failed) {
-                setStatusLocked("联机保护已停止动力调节；原值未能恢复，恢复记录已保留：" + detail);
+                setStatusLocked("Online protection has stopped power adjustment; the original value cannot be restored, and the recovery record has been retained:" + detail);
             } else if (outcome == RestoreOutcome::NotOurs) {
-                setStatusLocked("联机保护已停止动力调节；对象已改变，未执行恢复：" + detail);
+                setStatusLocked("Online protection has stopped power adjustment; the object has been changed and recovery has not been performed:" + detail);
             } else {
-                setStatusLocked("已自动停止并恢复原值：" + reason);
+                setStatusLocked("has automatically stopped and restored to its original value:" + reason);
             }
             if (error) *error = reason;
             return false;
@@ -715,7 +717,7 @@ bool EngineTuner::applyLocked(float scale, bool raiseLimit, std::string* error) 
         }
         if (!target) {
             if (error) {
-                *error = resolveError.empty() ? std::string("未绑定发动机定位器") : resolveError;
+                *error = resolveError.empty() ? std::string("Unbound engine positioner") : resolveError;
             }
             return false;
         }
@@ -726,7 +728,7 @@ bool EngineTuner::applyLocked(float scale, bool raiseLimit, std::string* error) 
         if (!state.recoveryPending) continue;
         std::string detail;
         if (restoreObjectLocked(address, &detail) != RestoreOutcome::Ok) {
-            if (error) *error = "部分事务恢复未确认，暂停写入：" + detail;
+            if (error) *error = "Some transaction recovery is not confirmed, writing is suspended:" + detail;
             return false;
         }
     }
@@ -736,7 +738,7 @@ bool EngineTuner::applyLocked(float scale, bool raiseLimit, std::string* error) 
         std::string detail;
         const RestoreOutcome outcome = restoreObjectLocked(activeObject_, &detail);
         if (outcome == RestoreOutcome::Failed) {
-            if (error) *error = "切换发动机对象前无法写回旧对象原值：" + detail;
+            if (error) *error = "The original value of the old object cannot be written back before switching the engine object:" + detail;
             return false;
         }
         if (outcome == RestoreOutcome::NotOurs) {
@@ -750,14 +752,14 @@ bool EngineTuner::applyLocked(float scale, bool raiseLimit, std::string* error) 
     // 4) 建立或复用基准
     EngineFieldValues current;
     if (!readEngineValues(*memory_, target, &current)) {
-        if (error) *error = "读取发动机数据失败（对象可能已失效）";
+        if (error) *error = "Failed to read engine data (the object may have expired)";
         return false;
     }
     // 未确认的部分事务必须先安全恢复；不能把混合残留当作新的原厂基准。
     for (const RemoteCredential& credential : remoteCreds_) {
         if (credential.recoveryPending && !tunerSameTriple(current, credential.written) &&
             !tunerSameTriple(current, credential.base)) {
-            if (error) *error = "上次部分事务尚未核对，当前内容不符；保留凭据并暂停写入";
+            if (error) *error = "Some of the last transactions have not been verified and the current content does not match; retain the credentials and suspend writing";
             return false;
         }
     }
@@ -766,7 +768,7 @@ bool EngineTuner::applyLocked(float scale, bool raiseLimit, std::string* error) 
         std::string detail;
         if (restoreObjectLocked(target, &detail) != RestoreOutcome::Ok ||
             !readEngineValues(*memory_, target, &current)) {
-            if (error) *error = "部分事务恢复未确认，暂停写入：" + detail;
+            if (error) *error = "Some transaction recovery is not confirmed, writing is suspended:" + detail;
             return false;
         }
     }
@@ -793,7 +795,7 @@ EngineTuner::RestoreOutcome EngineTuner::restoreObjectLocked(uint64_t address,
                                                              std::string* detail) {
     auto it = objects_.find(address);
     if (it == objects_.end()) {
-        if (detail) *detail = "没有该对象的原值记录";
+        if (detail) *detail = "There is no original value record of this object";
         return RestoreOutcome::NotOurs;
     }
     ObjectState& state = it->second;
@@ -802,13 +804,13 @@ EngineTuner::RestoreOutcome EngineTuner::restoreObjectLocked(uint64_t address,
         return RestoreOutcome::Ok;
     }
     if (!memory_ || !memory_->usable()) {
-        if (detail) *detail = "游戏进程已不可用";
+        if (detail) *detail = "The game process is no longer available";
         return RestoreOutcome::Failed;
     }
     // 写入前重新验证对象身份：地址可能已被释放或被别的对象复用。
     EngineFieldValues current;
     if (!readEngineValues(*memory_, address, &current)) {
-        if (detail) *detail = "发动机对象已失效（无法读取）";
+        if (detail) *detail = "The engine object has expired (cannot be read)";
         return state.recoveryPending ? RestoreOutcome::Failed : RestoreOutcome::NotOurs;
     }
     if (tunerSameTriple(current, state.base)) {
@@ -820,7 +822,7 @@ EngineTuner::RestoreOutcome EngineTuner::restoreObjectLocked(uint64_t address,
         return RestoreOutcome::Ok;
     }
     if (!tunerSameTriple(current, state.written)) {
-        if (detail) *detail = "对象数值与本程序记录不符（地址可能已被复用）";
+        if (detail) *detail = "The object value does not match the record of this program (the address may have been reused)";
         invalidatedRecord_ = true;  // 对象已明确失效：记录不再适用（界面如实提示）
         return state.recoveryPending ? RestoreOutcome::Failed : RestoreOutcome::NotOurs;
     }
@@ -854,7 +856,7 @@ bool EngineTuner::restoreActiveLocked(bool strict, std::string* error) {
         objects_.erase(object);
         invalidatedRecord_ = true;  // 对象已明确失效：记录被丢弃（不谎称已恢复）
         bumpRevisionLocked();  // 待恢复记录集合变化
-        if (error) *error = "未能写回原值：" + detail;
+        if (error) *error = "failed to write back the original value:" + detail;
         return !strict;
     }
     if (error) *error = detail;
@@ -878,7 +880,7 @@ bool EngineTuner::computeValuesLocked(const ObjectState& state, float scale, boo
     if (!std::isfinite(values.torque) || values.torque < kMinWriteTorque ||
         values.torque > kMaxWriteTorque) {
         if (error) {
-            *error = fmt("目标扭矩 %.1f N·m 超出安全范围（%.0f–%.0f），已拒绝写入",
+            *error = fmt("target torque %.1f N·m exceeds the safe range (%.0f–%.0f), writing has been rejected",
                          (double)values.torque, (double)kMinWriteTorque,
                          (double)kMaxWriteTorque);
         }
@@ -886,25 +888,25 @@ bool EngineTuner::computeValuesLocked(const ObjectState& state, float scale, boo
     }
     if (!std::isfinite(values.rpmLimit) || values.rpmLimit < kMinWriteRpm ||
         values.rpmLimit > (selectedGame() == GameId::Ats ? 10000.0f : kMaxWriteRpm) || values.rpmLimit <= state.base.rpmIdle) {
-        if (error) *error = fmt("目标转速上限 %.1f 不合理，已拒绝写入", (double)values.rpmLimit);
+        if (error) *error = fmt("Target speed upper limit %.1f is unreasonable and writing has been refused", (double)values.rpmLimit);
         return false;
     }
     if (!std::isfinite(values.rpmLimitNeutral) || values.rpmLimitNeutral < kMinWriteRpm ||
         values.rpmLimitNeutral > (selectedGame() == GameId::Ats ? 10000.0f : kMaxWriteRpm)) {
         if (error) {
-            *error = fmt("目标空挡转速上限 %.1f 不合理，已拒绝写入",
+            *error = fmt("The upper limit of the target neutral speed %.1f is unreasonable and has been rejected.",
                          (double)values.rpmLimitNeutral);
         }
         return false;
     }
     if (state.useCopyA && (!std::isfinite(values.copyA) || values.copyA < kMinWriteTorque ||
                            values.copyA > kMaxWriteTorque)) {
-        if (error) *error = "目标扭矩副本 A 超出安全范围，已拒绝写入";
+        if (error) *error = "Target torque copy A exceeds the safe range and has been rejected for writing";
         return false;
     }
     if (state.useCopyB && (!std::isfinite(values.copyB) || values.copyB < kMinWriteTorque ||
                            values.copyB > kMaxWriteTorque)) {
-        if (error) *error = "目标扭矩副本 B 超出安全范围，已拒绝写入";
+        if (error) *error = "Target torque copy B exceeds the safe range and has been rejected for writing";
         return false;
     }
     if (out) *out = values;
@@ -935,7 +937,7 @@ bool EngineTuner::writeValuesLocked(uint64_t address, ObjectState& state,
 
     EngineFieldValues before;
     if (!readEngineValues(*memory_, address, &before)) {
-        if (error) *error = "事务开始前读取发动机字段失败，未写入";
+        if (error) *error = "Failed to read the engine field before the transaction started, and it was not written.";
         return false;
     }
     EngineFieldValues expected = before;
@@ -951,7 +953,7 @@ bool EngineTuner::writeValuesLocked(uint64_t address, ObjectState& state,
 
     for (const Field& field : fields) {
         if (!std::isfinite(field.value)) {
-            if (error) *error = "写入值不是有限数，已拒绝写入";
+            if (error) *error = "The written value is not a finite number and the write has been rejected.";
             return false;
         }
     }
@@ -971,7 +973,7 @@ bool EngineTuner::writeValuesLocked(uint64_t address, ObjectState& state,
             }
         }
         if (failures > 0) {
-            text = fmt("，回滚未完全成功（%d 项）", failures);
+            text = fmt(", the rollback was not completely successful (item %d)", failures);
             // 不把未知读回值当作我们的值。只持久化逐字段成功 API 写入形成的图像。
             state.written = expected;
             state.hasWritten = true;
@@ -988,7 +990,7 @@ bool EngineTuner::writeValuesLocked(uint64_t address, ObjectState& state,
             std::string rollbackNote;
             rollback(i + 1, &rollbackNote); // API 失败也可能留下部分字节；该字段同样核对回滚。
             if (error) {
-                *error = fmt("写入字段 +0x%llX 失败%s",
+                *error = fmt("write field +0x%llX failed %s",
                              (unsigned long long)(fields[i].address - address),
                              rollbackNote.c_str());
             }
@@ -1004,7 +1006,7 @@ bool EngineTuner::writeValuesLocked(uint64_t address, ObjectState& state,
             std::string rollbackNote;
             rollback(fields.size(), &rollbackNote);
             if (error) {
-                *error = fmt("回读校验失败：字段 +0x%llX 期望 %.3f 实际 %.3f%s",
+                *error = fmt("Readback verification failed: Field +0x%llX Expected %.3f Actual %.3f%s",
                              (unsigned long long)(field.address - address), (double)field.value,
                              (double)actual, rollbackNote.c_str());
             }
@@ -1088,15 +1090,15 @@ bool EngineTuner::identityMatches(const ObjectState& state) const {
 }
 
 std::string EngineTuner::summaryLocked() const {
-    std::string text = fmt("动力 %.2f× 保持中", (double)scale_);
+    std::string text = fmt("power %.2f× on hold", (double)scale_);
     if (activeObject_) {
         const auto it = objects_.find(activeObject_);
         if (it != objects_.end()) {
-            text += fmt("（原厂 %.0f N·m → 当前 %.0f N·m）", (double)it->second.base.torque,
+            text += fmt("(original %.0f N·m → current %.0f N·m)", (double)it->second.base.torque,
                         (double)it->second.base.torque * (double)scale_);
         }
     }
-    if (raiseLimit_) text += "，转速上限 +10%";
+    if (raiseLimit_) text += ", speed limit +10%";
     return text;
 }
 
@@ -1308,11 +1310,11 @@ void EngineTuner::run() {
         } catch (const std::exception& e) {
             std::lock_guard<std::mutex> lock(mutex_);
             active_ = false;
-            setStatusLocked(fmt("动力调节后台线程异常，已停止（恢复记录已保留）：%s", e.what()));
+            setStatusLocked(fmt("The power adjustment background thread is abnormal and has stopped (the recovery record has been retained): %s", e.what()));
         } catch (...) {
             std::lock_guard<std::mutex> lock(mutex_);
             active_ = false;
-            setStatusLocked("动力调节后台线程发生未知异常，已停止（恢复记录已保留）");
+            setStatusLocked("An unknown exception occurred in the power adjustment background thread and has been stopped (the recovery record has been retained)");
         }
     }
 }
@@ -1353,11 +1355,11 @@ bool probeAccessories(const ProcessMemory& memory,
                       const std::vector<std::pair<std::string, uint64_t>>& roots,
                       AccessoryProbeResult* result, std::string* error) {
     if (!memory.isOpen()) {
-        if (error) *error = "游戏进程尚未附加";
+        if (error) *error = "The game process has not been attached yet";
         return false;
     }
     if (!result) {
-        if (error) *error = "结果指针为空";
+        if (error) *error = "result pointer is null";
         return false;
     }
     *result = AccessoryProbeResult();
@@ -1380,7 +1382,7 @@ bool probeAccessories(const ProcessMemory& memory,
         nodes.push_back(node);
     }
     if (nodes.empty()) {
-        if (error) *error = "没有可用的探针根节点";
+        if (error) *error = "No probe root node available";
         return false;
     }
 
@@ -1389,7 +1391,7 @@ bool probeAccessories(const ProcessMemory& memory,
         const Node node = nodes[index];
         const uint64_t windowSize = node.depth == 0 ? kRootWindow : kChildWindow;
         if (result->bytesRead + windowSize > kMaxBytes) {
-            result->note = "已达到读取上限，提前结束遍历；";
+            result->note = "The reading upper limit has been reached and the traversal ends early;";
             break;
         }
         size_t got = 0;
@@ -1461,7 +1463,7 @@ bool probeAccessories(const ProcessMemory& memory,
         }
     }
 
-    result->note += fmt("遍历节点 %llu 个、读取 %s；发动机候选 %d、变速箱候选 %d、具名对象 %d",
+    result->note += fmt("traverses %llu nodes and reads %s; engine candidate %d, gearbox candidate %d, named object %d",
                         (unsigned long long)result->nodesVisited,
                         formatSize(result->bytesRead).c_str(), (int)result->engines.size(),
                         (int)result->transmissions.size(), (int)result->named.size());

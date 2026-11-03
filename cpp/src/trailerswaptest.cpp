@@ -255,7 +255,7 @@ std::vector<TunerTestItem> runTrailerSwapTests() {
         out = "stale";
         check("double-target-refused",
               inspected && caravan && caravan->blocked &&
-                  caravan->blockReason.find("双挂") != std::string::npos &&
+                  caravan->blockReason.find("double trailer") != std::string::npos &&
                   !swapTrailerText(doubleTarget, "_nameless.4.6c00.f108", &out, &error) &&
                   out.empty(), error);
         const std::string driverBusy =

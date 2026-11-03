@@ -167,7 +167,7 @@ LogSession lastConvoySession(std::string* evidence) {
     ConvoySession session;
     parseConvoySession(tail, &session);
     if (session.active) {
-        if (evidence) *evidence = session.startedAt.empty() ? "[MP] 会话记录" : session.startedAt;
+        if (evidence) *evidence = session.startedAt.empty() ? "[MP] Session Record" : session.startedAt;
         return LogSession::Running;
     }
     if (truncated) return LogSession::Unknown;  // 窗口外可能藏着会话开始行，不能断言 None
@@ -206,29 +206,29 @@ MultiplayerStatus checkMultiplayer(DWORD pid, bool forceRefresh) {
     std::vector<std::wstring> hits = detectMultiplayer(pid, &modulesOk);
     if (!hits.empty()) {
         status.kind = MultiplayerKind::TruckersMp;
-        status.detail = "检测到 TruckersMP 特征：" + W2U(hits.front());
+        status.detail = "TruckersMP signature detected:" + W2U(hits.front());
     } else if (!modulesOk) {
         // 无法枚举模块时也无法排除 TruckersMP，不能因为关闭了 Convoy 检测而放行。
         status.kind = MultiplayerKind::Unknown;
-        status.detail = "无法枚举游戏进程模块，无法排除 TruckersMP（拒绝写入）";
+        status.detail = "Unable to enumerate game process modules, unable to exclude TruckersMP (write denied)";
     } else if (!convoyEnabled) {
         status.kind = MultiplayerKind::None;
-        status.detail = "未发现 TruckersMP（联运模式检测已关闭）";
+        status.detail = "TruckersMP not found (Convoy detection is turned off)";
     } else {
         std::string evidence;
         switch (lastConvoySession(&evidence)) {
             case LogSession::Running:
                 status.kind = MultiplayerKind::Convoy;
-                status.detail = "官方 Convoy 会话进行中（依据 game.log.txt 的 [MP] 记录）";
+                status.detail = "Official Convoy session in progress (according to [MP] record in game.log.txt)";
                 break;
             case LogSession::None:
                 status.kind = MultiplayerKind::None;
-                status.detail = "game.log.txt 未发现进行中的联机会话";
+                status.detail = "game.log.txt No online session in progress found";
                 break;
             default:
                 status.kind = MultiplayerKind::Unknown;
-                status.detail = "读不到 game.log.txt，无法确认是否在官方 Convoy 中"
-                                "（已按联机对待，拒绝写入）";
+                status.detail = "cannot read game.log.txt and cannot confirm whether it is in the official Convoy"
+                                "(Treated as online, writing rejected)";
                 break;
         }
     }
@@ -314,10 +314,10 @@ bool parseConvoySession(const std::string& logText, ConvoySession* out) {
     }
 
     session.note = session.active
-                       ? fmt("Convoy 会话进行中（自 %s），在线 %d 人",
-                             session.startedAt.empty() ? "未知" : session.startedAt.c_str(),
+                       ? fmt("Convoy session in progress (from %s), online %d person",
+                             session.startedAt.empty() ? "unknown" : session.startedAt.c_str(),
                              (int)session.players.size())
-                       : std::string("当前没有进行中的 Convoy 会话");
+                       : std::string("There are currently no ongoing Convoy sessions");
     *out = std::move(session);
     return true;
 }
@@ -327,7 +327,7 @@ ConvoySession readConvoySession() {
     std::string tail;
     if (!readFileTail(documentsDir() + L"\\game.log.txt", 512 * 1024, &tail)) {
         session.logAvailable = false;
-        session.note = "读不到 game.log.txt，无法判断 Convoy 会话状态";
+        session.note = "cannot read game.log.txt and cannot determine the Convoy session status";
         return session;
     }
     parseConvoySession(tail, &session);
@@ -558,11 +558,11 @@ SendResult sendConsoleCommand(const std::string& command, int consoleVk, DWORD p
     SendResult result;
     uintptr_t hwnd = findGameWindow(pid);
     if (!hwnd) {
-        result.message = "没有找到游戏窗口（请先启动欧卡2）";
+        result.message = "Game window not found (please start ETS2 first)";
         return result;
     }
     if (!activateWindow(hwnd)) {
-        result.message = "无法把游戏窗口切到前台，请先手动点一下游戏窗口";
+        result.message = "Unable to switch the game window to the foreground, please click on the game window manually first";
         return result;
     }
     // 打开控制台
@@ -610,17 +610,17 @@ SendResult sendConsoleCommand(const std::string& command, int consoleVk, DWORD p
         ::Sleep(100);
     }
     result.ok = true;
-    result.message = "已发送命令: " + command;
+    result.message = "Command sent: " + command;
     return result;
 }
 
 const std::vector<ConsoleKeyOption>& consoleKeyOptions() {
     static const std::vector<ConsoleKeyOption> options = {
-        {"~` 键 (默认)", 0xC0},
-        {"' \" 引号键", 0xDE},
-        {"\\ | 反斜杠键", 0xDC},
-        {"; : 分号键", 0xBA},
-        {"F12 键", 0x7B},
+        {"~` key (default)", 0xC0},
+        {"' \" quotation mark key", 0xDE},
+        {"\\ | Backslash key", 0xDC},
+        {"; : semicolon key", 0xBA},
+        {"F12 key", 0x7B},
     };
     return options;
 }
@@ -721,22 +721,22 @@ bool cameraKeyBindings(const std::wstring& controlsPath, CameraBindings* out) {
 SendResult sendKeyTap(int vk, DWORD pid) {
     SendResult result;
     if (!vk) {
-        result.message = "按键未识别";
+        result.message = "button not recognized";
         return result;
     }
     const uintptr_t hwnd = findGameWindow(pid);
     if (!hwnd) {
-        result.message = "没有找到游戏窗口（请先启动欧卡2）";
+        result.message = "Game window not found (please start ETS2 first)";
         return result;
     }
     if (!activateWindow(hwnd)) {
-        result.message = "无法把游戏窗口切到前台，请先手动点一下游戏窗口";
+        result.message = "Unable to switch the game window to the foreground, please click on the game window manually first";
         return result;
     }
     pressKey(vk, false, 80);
     result.ok = true;
     result.typed = 1;
-    result.message = fmt("已发送按键 0x%02X", vk);
+    result.message = fmt("Sent key 0x%02X", vk);
     return result;
 }
 

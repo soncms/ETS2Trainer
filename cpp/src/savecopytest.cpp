@@ -180,7 +180,7 @@ std::vector<TunerTestItem> runSaveCopyTests() {
         const uint8_t trailingFixed[]={3,0,255};
         error.clear();
         check("固定块尾随整字节拒绝",!inflateRaw(trailingFixed,sizeof(trailingFixed),decoded,&error,1) &&
-              error.find("多余数据")!=std::string::npos,error);
+              error.find("excess data")!=std::string::npos,error);
         std::vector<uint8_t> trailingStored(stored,stored+sizeof(stored)); trailingStored.push_back(0);
         check("存储块尾随整字节拒绝",!inflateRaw(trailingStored.data(),trailingStored.size(),decoded,&error,3),error);
         const uint8_t fixed[]={75,76,28,5,163,96,20,12,119,0,0};
@@ -261,7 +261,7 @@ std::vector<TunerTestItem> runSaveCopyTests() {
             auto zTrailing=zbytes; zTrailing.insert(zTrailing.end()-4,0xFF);
             check("ScsC压缩流尾随垃圾拒绝且清空输出",
                   !runDec(encryptPayload(zTrailing,static_cast<uint32_t>(infoText.size()),pkcs7(zTrailing.size())),0,out,di,de) &&
-                  out.empty() && di.innerFormat.empty() && di.innerSize==0 && de.find("多余数据")!=std::string::npos,de);
+                  out.empty() && di.innerFormat.empty() && di.innerSize==0 && de.find("excess data")!=std::string::npos,de);
             const std::string unknownInner="Qnknown binary \x01\x02 payload";
             const auto uz=zlibStored(unknownInner);
             check("压缩未知内容拒绝",!runDec(encryptPayload(uz,static_cast<uint32_t>(unknownInner.size()),pkcs7(uz.size())),0,out,di,de) && out.empty(),de);
@@ -475,11 +475,11 @@ std::vector<TunerTestItem> runReadableExportTests() {
             !fs::exists(out(L"zero_limit.sii")) && clearInfo(), err);
         SaveSlot absent; absent.gameSii = (root / L"absent.sii").wstring();
         check("开始前取消不读取源", !exportReadableSii(absent, out(L"cancel_early.sii"), &ri, &err, [] { return true; }) &&
-            !fs::exists(out(L"cancel_early.sii")) && err.find("取消") != std::string::npos && clearInfo(), err);
+            !fs::exists(out(L"cancel_early.sii")) && err.find("canceled") != std::string::npos && clearInfo(), err);
         int polls = 0;
         check("转换期间取消无输出", !exportReadableSii(bsii, out(L"cancel_decode.sii"), &ri, &err,
             [&] { return ++polls >= 3; }) && polls >= 3 &&
-            !fs::exists(out(L"cancel_decode.sii")) && err.find("取消") != std::string::npos && clearInfo(), err);
+            !fs::exists(out(L"cancel_decode.sii")) && err.find("canceled") != std::string::npos && clearInfo(), err);
         auto stagedSize = [&] {
             for (const auto& e : fs::directory_iterator(exports)) {
                 if (e.path().filename().wstring().rfind(L"~ets2export_", 0) != 0) continue;

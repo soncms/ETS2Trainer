@@ -101,7 +101,7 @@ bool VehicleLocker::bind(ProcessMemory* memory, DWORD pid, std::string* error) {
     memory_ = memory;
     pid_ = pid;
     if (!memory_ || !memory_->isOpen()) {
-        if (error) *error = "游戏进程尚未附加";
+        if (error) *error = "The game process has not been attached yet";
         return false;
     }
     if (!locateRootGlobal(error)) {
@@ -109,7 +109,7 @@ bool VehicleLocker::bind(ProcessMemory* memory, DWORD pid, std::string* error) {
         pid_ = 0;
         return false;
     }
-    setStatus("已绑定当前游戏已验证版本的车辆指针（无数值扫描）");
+    setStatus("has been bound to the vehicle pointer of the verified version of the current game (no value scan)");
     return true;
 }
 
@@ -119,6 +119,7 @@ bool VehicleLocker::locateRootGlobal(std::string* error) {
     if (!verifyGameLayout(*memory_, &base, error, &matched)) return false;
     const auto& profile = *matched;
     fuelCorrectionOffset_=profile.fuelCorrectionOffset;
+    truckTailShift_=profile.truckTailShift;
     int32_t displacement = 0;
     ::memcpy(&displacement, profile.rootInstruction.data() + 3, sizeof(displacement));
     rootGlobal_ = base + profile.rootRva + 7 + static_cast<int64_t>(displacement);
@@ -127,7 +128,7 @@ bool VehicleLocker::locateRootGlobal(std::string* error) {
 
 bool VehicleLocker::resolveChainOnly(VehicleAddresses* addresses, std::string* error) const {
     if (!memory_ || !memory_->isOpen() || !rootGlobal_) {
-        if (error) *error = "固定车辆指针尚未绑定";
+        if (error) *error = "fixed vehicle pointer has not been bound yet";
         return false;
     }
     if (pid_ && (pid_ != memory_->pid() || !verifyGameLayout(*memory_, nullptr, error))) return false;
@@ -136,7 +137,7 @@ bool VehicleLocker::resolveChainOnly(VehicleAddresses* addresses, std::string* e
         !readPointer(*memory_, root + kRootToDriver, &driver) ||
         !readPointer(*memory_, driver + kDriverToContext, &context) ||
         !readPointer(*memory_, context + kContextToTruck, &truck)) {
-        if (error) *error = "当前没有可用车辆（请进入驾驶界面）";
+        if (error) *error = "There is currently no available vehicle (please enter the driving interface)";
         return false;
     }
     VehicleAddresses found;
@@ -158,44 +159,44 @@ bool VehicleLocker::resolveAndValidate(VehicleAddresses* addresses,
     TelemetrySnapshot live;
     std::string telemetryError;
     if (requireTelemetry && !readTelemetry(&live, &telemetryError)) {
-        if (error) *error = "安全校验需要遥测数据：" + telemetryError;
+        if (error) *error = "security verification requires telemetry data:" + telemetryError;
         return false;
     }
 
     float capacity = 0.0f, ratio = 0.0f, correction = 0.0f;
     std::array<float, 8> wearParts{};
     if (!readFloat(*memory_, truck + kTruckFuelCapacity, &capacity) ||
-        !readFloat(*memory_, truck + kTruckFuelRatio, &ratio) ||
+        !readFloat(*memory_, truck + kTruckFuelRatio + truckTailShift_, &ratio) ||
         !readFloat(*memory_, context + fuelCorrectionOffset_, &correction) ||
-        !readFloat(*memory_, truck + kTruckEngineWear, &wearParts[0]) ||
-        !readFloat(*memory_, truck + kTruckEnginePermanent, &wearParts[1]) ||
-        !readFloat(*memory_, truck + kTruckTransmissionWear, &wearParts[2]) ||
-        !readFloat(*memory_, truck + kTruckTransmissionPermanent, &wearParts[3]) ||
-        !readFloat(*memory_, truck + kTruckCabinWear, &wearParts[4]) ||
-        !readFloat(*memory_, truck + kTruckCabinPermanent, &wearParts[5]) ||
+        !readFloat(*memory_, truck + kTruckEngineWear + truckTailShift_, &wearParts[0]) ||
+        !readFloat(*memory_, truck + kTruckEnginePermanent + truckTailShift_, &wearParts[1]) ||
+        !readFloat(*memory_, truck + kTruckTransmissionWear + truckTailShift_, &wearParts[2]) ||
+        !readFloat(*memory_, truck + kTruckTransmissionPermanent + truckTailShift_, &wearParts[3]) ||
+        !readFloat(*memory_, truck + kTruckCabinWear + truckTailShift_, &wearParts[4]) ||
+        !readFloat(*memory_, truck + kTruckCabinPermanent + truckTailShift_, &wearParts[5]) ||
         !readFloat(*memory_, truck + kTruckChassisWear, &wearParts[6]) ||
         !readFloat(*memory_, truck + kTruckChassisPermanent, &wearParts[7])) {
-        if (error) *error = "读取固定车辆字段失败";
+        if (error) *error = "Failed to read fixed vehicle field";
         return false;
     }
     if (capacity <= 0.0f || capacity > 10000.0f || ratio < -0.01f || ratio > 1.10f ||
         correction < -1.10f || correction > 1.10f) {
-        if (error) *error = "固定车辆字段范围异常，已拒绝写入";
+        if (error) *error = "Fixed vehicle field range exception, writing has been refused";
         return false;
     }
     for (float value : wearParts) {
         if (value < -0.001f || value > 1.001f) {
-            if (error) *error = "固定损伤字段范围异常，已拒绝写入";
+            if (error) *error = "Fixed damage field range abnormality, write rejected";
             return false;
         }
     }
 
-    found.fuel = truck + kTruckFuelRatio;
+    found.fuel = truck + kTruckFuelRatio + truckTailShift_;
     found.fuelCorrection = context + fuelCorrectionOffset_;
     found.damageFields = {
-        truck + kTruckEngineWear,        truck + kTruckEnginePermanent,
-        truck + kTruckTransmissionWear,  truck + kTruckTransmissionPermanent,
-        truck + kTruckCabinWear,         truck + kTruckCabinPermanent,
+        truck + kTruckEngineWear + truckTailShift_,        truck + kTruckEnginePermanent + truckTailShift_,
+        truck + kTruckTransmissionWear + truckTailShift_,  truck + kTruckTransmissionPermanent + truckTailShift_,
+        truck + kTruckCabinWear + truckTailShift_,         truck + kTruckCabinPermanent + truckTailShift_,
         truck + kTruckChassisWear,       truck + kTruckChassisPermanent,
     };
 
@@ -205,7 +206,7 @@ bool VehicleLocker::resolveAndValidate(VehicleAddresses* addresses,
         !readWheelGroup(*memory_, truck, kTruckWheelPermanentArray,
                         kTruckWheelPermanentCount, kTruckWheelPermanentCache,
                         &wheelPermanent, &found.damageFields)) {
-        if (error) *error = "读取车轮损伤数组失败，已拒绝写入";
+        if (error) *error = "Failed to read the wheel damage array, writing has been rejected";
         return false;
     }
 
@@ -223,7 +224,7 @@ bool VehicleLocker::resolveAndValidate(VehicleAddresses* addresses,
         if (!closeFloat(capacity, live.fuelCapacity, 1.0f) ||
             (!fuelAlreadyLocked && !closeFloat(expectedFuel, live.fuel, fuelTolerance))) {
             if (error) {
-                *error = fmt("固定油量字段未通过遥测校验（内存 %.2f/%.2f L，遥测 %.2f/%.2f L）",
+                *error = fmt("Fixed fuel level field failed telemetry verification (memory %.2f/%.2f L, telemetry %.2f/%.2f L)",
                              expectedFuel, capacity, live.fuel, live.fuelCapacity);
             }
             return false;
@@ -232,7 +233,7 @@ bool VehicleLocker::resolveAndValidate(VehicleAddresses* addresses,
             const bool alreadyLocked = damageEnabled() && expectedWear[index] <= 0.002f;
             if (!alreadyLocked && !closeFloat(expectedWear[index], live.wear[index], 0.002f)) {
                 if (error) {
-                    *error = fmt("固定损伤字段第 %llu 项未通过遥测校验（内存 %.6f，遥测 %.6f）",
+                    *error = fmt("Fixed damage field item %llu failed telemetry verification (memory %.6f, telemetry %.6f)",
                                  (unsigned long long)(index + 1), expectedWear[index],
                                  live.wear[index]);
                 }
@@ -268,7 +269,7 @@ bool VehicleLocker::applyTransactional(const VehicleAddresses& addresses, bool f
     // Read the entire transaction before changing any field.
     for (auto& field : fields) {
         if (!field.address || !readFloat(*memory_, field.address, &field.before)) {
-            if (error) *error = "车辆字段不可读，未执行事务写入";
+            if (error) *error = "The vehicle field is not readable and no transaction writing is performed.";
             return false;
         }
     }
@@ -299,8 +300,8 @@ bool VehicleLocker::applyTransactional(const VehicleAddresses& addresses, bool f
             !closeFloat(actual, field.target, 1e-4f)) {
             const size_t failed = rollback(stale ? i : i + 1);
             if (error) *error = failed
-                ? fmt("车辆事务失败，%zu 项无法确认回滚；已停止锁定，请重新载入存档", failed)
-                : "车辆事务取消或写入失败，本轮修改已回滚";
+                ? fmt("Vehicle transaction failed, %zu item cannot confirm rollback; locking has stopped, please reload the archive", failed)
+                : "Vehicle transaction cancellation or writing failure, this round of modifications has been rolled back";
             return false;
         }
     }
@@ -323,7 +324,7 @@ bool VehicleLocker::setFuelEnabled(bool enabled, std::string* error, bool electr
     }
     if (!memory_ || !memory_->isOpen()) {
         applyCommand(false, current.damage);
-        if (error) *error = "游戏进程尚未附加";
+        if (error) *error = "The game process has not been attached yet";
         return false;
     }
     VehicleAddresses addresses;
@@ -337,12 +338,12 @@ bool VehicleLocker::setFuelEnabled(bool enabled, std::string* error, bool electr
     if (result.action != CycleAction::Applied) {
         applyCommand(false, current.damage);
         if (error && error->empty()) *error = result.note;
-        setStatus(std::string(electric ? "无限电量启用失败：" : "无限油量启用失败：") +
-                  (error ? *error : std::string("写入被拒绝")));
+        setStatus(std::string(electric ? "Unlimited battery activation failed:" : "Unlimited fuel volume activation failed:") +
+                  (error ? *error : std::string("write rejected")));
         return false;
     }
-    setStatus(electric ? "无限电量已锁定（100%）" :
-              fmt("无限油量已锁定（%.1f / %.1f L）", telemetry.fuel, telemetry.fuelCapacity));
+    setStatus(electric ? "unlimited power is locked (100%)" :
+              fmt("unlimited oil volume locked (%.1f / %.1f L)", telemetry.fuel, telemetry.fuelCapacity));
     ensureThread();
     return true;
 }
@@ -363,7 +364,7 @@ bool VehicleLocker::setDamageEnabled(bool enabled, std::string* error) {
     }
     if (!memory_ || !memory_->isOpen()) {
         applyCommand(current.fuel, false, current.electric);
-        if (error) *error = "游戏进程尚未附加";
+        if (error) *error = "The game process has not been attached yet";
         return false;
     }
     VehicleAddresses addresses;
@@ -377,10 +378,10 @@ bool VehicleLocker::setDamageEnabled(bool enabled, std::string* error) {
     if (result.action != CycleAction::Applied) {
         applyCommand(current.fuel, false, current.electric);
         if (error && error->empty()) *error = result.note;
-        setStatus("车辆无损启用失败：" + (error ? *error : std::string("写入被拒绝")));
+        setStatus("Vehicle damage prevention activation failed:" + (error ? *error : std::string("write rejected")));
         return false;
     }
-    setStatus("车辆五项损伤已清零并锁定");
+    setStatus("The five vehicle damages have been cleared and locked");
     ensureThread();
     return true;
 }
@@ -474,18 +475,18 @@ std::string VehicleLocker::guardReason(const VehicleCommandState& state) {
 VehicleLocker::CycleResult VehicleLocker::runCycleLocked(const VehicleAddresses& addresses,
                                                         bool requireTelemetry, std::string* error) {
     (void)requireTelemetry; // Production callers resolve and cross-check telemetry first.
-    if (!memory_ || !memory_->isOpen()) return {CycleAction::Idle, "游戏进程尚未绑定"};
+    if (!memory_ || !memory_->isOpen()) return {CycleAction::Idle, "The game process has not been bound yet"};
     const VehicleCommandState state = commands();
     if (cycleHookAfterSnapshot_) cycleHookAfterSnapshot_();
-    if (commandSequence() != state.sequence) return {CycleAction::SkippedStale, "状态已变化，本轮不写入"};
-    if (!state.fuel && !state.damage) return {CycleAction::Idle, "车辆锁定已关闭"};
+    if (commandSequence() != state.sequence) return {CycleAction::SkippedStale, "status has changed and will not be written in this round."};
+    if (!state.fuel && !state.damage) return {CycleAction::Idle, "Vehicle lock is off"};
     std::string blocked = structuralWriteBlockReason();
     if (blocked.empty()) blocked = guardReason(state);
-    if (commandSequence() != state.sequence) return {CycleAction::SkippedStale, "闸门检查期间状态已变化"};
+    if (commandSequence() != state.sequence) return {CycleAction::SkippedStale, "Status changed during gate inspection"};
     if (!blocked.empty()) {
         applyCommand(false, false);
         if (error) *error = blocked;
-        return {CycleAction::Blocked, "写入已拒绝：" + blocked};
+        return {CycleAction::Blocked, "Write rejected:" + blocked};
     }
     std::string detail;
     if (!applyTransactional(addresses, state.fuel, state.damage, state.sequence, &detail)) {
@@ -514,14 +515,14 @@ void VehicleLocker::ensureThread() {
 // 「唯一写者」约束，与界面线程正在进行的启用/写入交错，误隔离有效记录或覆盖新写入。
 VehicleLocker::CycleResult VehicleLocker::runWorkerIteration() {
     const VehicleCommandState state = commands();
-    if (!state.fuel && !state.damage) return {CycleAction::Idle, "车辆锁定已关闭"};
+    if (!state.fuel && !state.damage) return {CycleAction::Idle, "Vehicle lock is off"};
     VehicleAddresses addresses;
     TelemetrySnapshot telemetry;
     std::string error;
     if (!resolveAndValidate(&addresses, &telemetry, &error))
-        return {CycleAction::Blocked, "锁定已暂停：" + error};
+        return {CycleAction::Blocked, "Lock has been suspended:" + error};
     std::lock_guard<std::mutex> writeLock(writeMutex_);
-    if (commandSequence() != state.sequence) return {CycleAction::SkippedStale, "命令已变化"};
+    if (commandSequence() != state.sequence) return {CycleAction::SkippedStale, "command has changed"};
     return runCycleLocked(addresses, true, &error);
 }
 
@@ -542,21 +543,22 @@ void VehicleLocker::stop() {
     pid_ = 0;
     rootGlobal_ = 0;
     fuelCorrectionOffset_=0x1158;
-    setStatus("未启用");
+    truckTailShift_=0;
+    setStatus("not enabled");
 }
 
 std::string VehicleLocker::comboStatusText() const {
     std::vector<std::string> items;
     const auto state = commands();
-    if (state.fuel) items.push_back(state.electric ? "无限电量" : "无限油量");
-    if (state.damage) items.push_back("无损");
-    if (items.empty()) return "车辆锁定已关闭";
+    if (state.fuel) items.push_back(state.electric ? "Unlimited battery" : "Unlimited fuel");
+    if (state.damage) items.push_back("damage prevention");
+    if (items.empty()) return "Vehicle lock is off";
     std::string text;
     for (size_t i = 0; i < items.size(); ++i) {
         if (i > 0) text += " + ";
         text += items[i];
     }
-    text += "锁定中";
+    text += "locked";
     return text;
 }
 

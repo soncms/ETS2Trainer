@@ -62,6 +62,7 @@ private:
     DWORD pid_ = 0;
     uint64_t rootGlobal_ = 0;
     uint64_t fuelCorrectionOffset_ = 0x1158;
+    uint64_t truckTailShift_ = 0;
     mutable std::mutex commandMutex_;
     VehicleCommandState command_;
     std::mutex writeMutex_;
@@ -74,6 +75,6 @@ private:
     std::atomic<bool> stopping_{true};
     std::thread thread_;
     mutable std::mutex statusMutex_;
-    std::string status_ = "未启用";
+    std::string status_ = "not enabled";
 };
 } // namespace ets2

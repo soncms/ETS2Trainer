@@ -1,212 +1,55 @@
-# 欧卡2 / 美卡 修改器
+# ETS2 / ATS Truck Trainer — English fork
 
-同一个 `ETS2Trainer.exe` 支持《欧洲卡车模拟 2》（ETS2）和《美国卡车模拟》（ATS）。
-原生中文界面，使用 Dear ImGui + Direct3D 11。启动后在顶部明确选择 **欧卡2** 或 **美卡**；
-程序按所选游戏查找进程、存档、配置和联机日志。两款游戏同时运行时也不会自动猜测目标。
+English interface and ATS **1.62.1.1s** engine tuning support, based on [sakuradairong/ETS2Trainer](https://github.com/sakuradairong/ETS2Trainer).
 
-## 使用
+## Supported builds
 
-1. 启动目标游戏。
-2. 运行本目录的 `ETS2Trainer.exe`，允许其管理员权限请求。
-3. 在顶部选择 **欧卡2 / 美卡**，点击「附加游戏」。
-4. 使用所需标签页。美卡填写目标金额即可自动识别银行并改钱；车辆页提供无限油量、无损和动力倍率。切换游戏会停止扫描与锁定、清空旧地址和旧游戏的界面缓存，需要重新附加。
+- ATS: 1.62.1.1s (PE timestamp `6AE990FB`, image size `039DB000`), plus the upstream 1.61.3.1 profile.
+- ETS2: upstream 1.61.1.1 and 1.61.1.9 profiles. ETS2 1.62 has not been verified.
+- ATS 1.62 automatic money/XP editing is unavailable until its economy layout is verified. Other save tools retain upstream behavior.
+- Exact executable fingerprints and code anchors are checked. Changing the version label does not enable an unknown build.
 
-游戏选择会保存在 `settings.ini`；没有选择记录的旧设置默认欧卡2。
-也可以明确指定启动目标：
+## Use
 
-```powershell
-.\ETS2Trainer.exe --game=ets2
-.\ETS2Trainer.exe --game=ats
+1. Install the x64 `scs-telemetry.dll` from [RenCloud/scs-sdk-plugin V.1.12.1](https://github.com/RenCloud/scs-sdk-plugin/releases/tag/V.1.12.1) into the game's `bin/win_x64/plugins/` folder. Restart the game once after installation and accept its SDK notification.
+2. Load a single-player profile and enter your truck.
+3. Run `ETS2Trainer.exe`; accept the Windows administrator prompt if shown.
+4. Select **ATS** or **ETS2**, then **Attach game**.
+5. Open **Vehicle tuning**, select **1.25×**, **1.50×**, or **2.00×**, and click **Apply tuning**.
+6. **Restore stock** restores the recorded engine values. Leave the trainer running while using the multiplier; the upstream maintenance loop follows the current vehicle after truck changes or save loads.
+
+The multiplier changes actual engine torque, including its two runtime copies. The truck shop's HP text does not have to change. RPM limit +10% is optional and independent.
+
+TruckersMP engine writes are blocked. Convoy detection and the upstream restoration/transaction protections are retained. Do not run two trainers against the same game.
+
+The English interface and diagnostics are translated; advanced features retain upstream scope. Original Chinese documentation: [README.zh-CN.md](README.zh-CN.md).
+
+## Build on Windows
+
+Install **Visual Studio 2022 Build Tools** with **Desktop development with C++** (MSVC x64/x86 tools and Windows SDK). Dear ImGui is already vendored. Git is needed to clone the repository.
+
+```bat
+cd cpp
+build.bat
 ```
 
-命令行的选择优先于已保存的选择，诊断命令也使用该游戏的进程和路径。
+Output: `ETS2Trainer.exe` in the repository root. The script currently uses the standard VS 2022 BuildTools installation path; edit `VCVARS` if your installation differs.
 
-## 功能范围
-
-| 功能 | 欧卡2 | 美卡 |
-| --- | --- | --- |
-| 通用数值扫描、收窄、手动写入和锁定 | 支持 | 支持 |
-| 存档列表、备份、解密导出、受支持格式的明文数值修改 | 支持 | 共用存档工具 |
-| 控制台命令、配置辅助、自由相机、城市/坐标传送 | 支持 | 共用工具，城市名和按键按美卡读取 |
-| 自动结构化定位金钱和经验 | 首次填写当前金额 | ATS 1.61.3.1 按银行类型自动定位，无需当前金额 |
-| 固定指针无限油量、车辆无损、发动机动力调节 | ETS2 1.61.1.1 / 1.61.1.9 | ATS 1.61.3.1，含汽车 DLC 高转速发动机 |
-
-美卡采用独立的车辆入口、银行/经济运行时偏移及发动机类型校验。生产操作核对实际进程名、
-PE 时间戳、映像大小和入口指令；车辆还需与当前游戏遥测核对油量和五项磨损。
-版本或对象不匹配、候选歧义、候选未完整检查、联机状态无法确认时拒绝写入。
-美卡汽车 DLC 已核对 98 L 油箱和 6500 rpm 发动机；倍率使用原厂基准，关闭时恢复。
-
-本版本不包含防侧翻功能或车型性能模组。
-
-### 通用扫描器
-
-选择数值类型，输入游戏当前显示的值后首次扫描；让游戏里的值发生变化，再输入新值收窄。
-现金通常使用 `int64`，经验通常使用 `int32`，油量和损伤可使用 `float`。
-整数输入必须在可精确表示的范围内；浮点扫描可以设置容差。
-候选过多或结果不明确时继续收窄。多地址写入与锁定保留确认流程。
-切换游戏或重新附加会清空旧扫描结果，不能继续使用另一进程的地址。
-
-### 存档与备份
-
-程序通过 Windows 文档目录定位游戏资料，同时读取对应 Steam 云存档：
-
-| 游戏 | 文档目录 | Steam App ID |
-| --- | --- | --- |
-| 欧卡2 | `Documents/Euro Truck Simulator 2` | `227300` |
-| 美卡 | `Documents/American Truck Simulator` | `270880` |
-
-文档目录经过重定向时，以 Windows 返回的实际目录为准。
-欧卡旧备份继续位于修改器目录的 `backups`，美卡备份位于 `backups/ats`。
-新备份附带游戏标签；无标签的旧备份仅按欧卡处理。恢复前检查游戏归属和原始路径，
-支持该游戏的文档目录和 Steam 云存档目录，拒绝跨游戏恢复及通过 `..` 逃逸的路径。
-解密导出写入当前游戏文档目录下的 `exports`（「打开导出文件夹」可直接定位）。
-导出不会覆盖已有文件：重复导出会另存为新名字，旧导出原样保留。
-「解密导出选中」保留解密后的格式与字节（SII 文本仍为文本，BSII 仍为二进制）；
-「导出可读 SII」自动解密，把 SII 文本原样写出，把 BSII v3 转换为 `SiiNunit` 文本，
-生成可直接用文本编辑器查看的 `.sii`，文件名以 `readable_` 开头。
-两种导出均在后台执行，可用界面底部的「取消任务」停止；取消在读取、解密阶段结束后检查，
-转换和写入阶段也会检查，最终发布前取消则不生成目标文件。
-可读文本上限为 128 MiB；未知 BSII 版本、损坏内容和不支持的二进制（如 3nK）会被拒绝。
-导出不修改源存档；转换文本用于查看与离线处理，游戏内载入仍需单独验收。
-
-“跨存档复制卡车”支持同一游戏的不同存档／档案：在存档列表选中源存档，点击该按钮，选择源卡车、
-目标存档和空车库，并填写新存档名称。导入结果另存到目标档案的新槽位，源档和目标原档保持不变。
-车辆和配件使用新的对象 ID，保留配置、磨损和里程，创建空收益记录；不会修改当前驾驶车辆或分配司机。
-导入要求游戏退出、源与目标存档版本一致，并且目标已启用源存档所需的 DLC／模组。依赖检查采用保守规则，
-不支持的对象结构、缺失引用或没有空车库位置会拒绝导入。依赖名称一致不能替代实际游戏载入验证。
-
-车辆导入会自动解密并转换进度：加密外层、`SiiNunit` 文本和 BSII v3 二进制存档都可作为源档，
-无需在游戏控制台设置 `g_save_format` 或手动另存新存档。未知的二进制版本和无法解析的对象结构会被拒绝。
-导入前请退出对应游戏并在列表中选中源存档；条件不满足（例如游戏仍在运行或尚未选择源档）会弹出提示。
-结果另存到目标档案的新槽位，源档和目标原档都保持不变；导入后需在游戏中载入新槽位确认卡车与车库。
-
-“更换挂车”把存档里当前连着的挂车换成另一辆：在存档列表选中源存档（需保存时卡车正连着挂车），
-点击按钮后程序解密并列举存档内全部挂车，标注自有／任务市场、车牌、载重和不可选原因
-（双挂车组、AI 司机占用、被其他任务占用、定义缺失）。选择目标后仅改写当前车辆槽位与任务的挂车引用，
-任务中的货物随新挂车继续，车库挂车位与所有权列表原样保留；被其他车库槽位占用的目标会先腾空。
-结果另存为同一档案的新存档槽，源档保持不变，进游戏载入即生效。线上任务（如 TMP 外部合同）
-可以更换但联机同步效果未验证，请在单人环境先试。
-
-“车队经济管理”（欧卡2）可在多个已购车库中批量补充司机和卡车。在存档列表选择源档，
-打开该功能，选择一辆自有卡车作为模板，填写各车库的补充组数，或按空位自动分配。
-每组包含一名未雇佣司机和一辆卡车；司机从司机池与招聘列表按经验选择，保留技能，卡车复制配置、磨损和里程。
-也可勾选闲置卡车，仅为已有卡车雇佣司机；自动分配优先使用可核实的闲置卡车，再补充新车。
-可将未购买车库设为 3 或 5 车位，也可将已有小车库扩容；不扣购买/升级费用，不移动原有司机、车辆或挂车。
-勾选“只看未购买”后，可按城市搜索，逐个选目标容量，或将筛选内未购车库批量设为 5 车位。
-选定车库容量后，“按空位自动分配”会计入新车位；也可只购买/扩容空车库，不新增司机和卡车。
-界面只把车辆和司机同时为空的槽位计为空位；不支持缩小车库或删除车库。
-填写新存档名称并预览分配，退出欧卡，再生成副本。源档保持不变，不扣购车费/雇佣费、不直接增加现金。
-新增时同步更新司机池、雇佣名单、并行状态数组、卡车收益记录与经济事件队列；预览后源档变化会拒绝写入。
-车辆模拟参数取自至少两名同配置在职司机的一致记录；比较配件对象及自定义值，忽略对象 ID 和历史购买价格。
-参考不足、非默认参数有冲突的车型会拒绝新增分配；不猜测质量或效率。
-可单独勾选修复仍为司机池默认参数的在职司机，预览显示对象和目标参数；不改变其任务、事件或收益记录。
-“经营记录”展示各车库及司机保留的历史营收、工资/维护/燃油费用与净收益，不换算为日收益或未来预测。
-目前单次最多雇佣 400 名、修复 400 名、购买/扩容 400 个车库，并拒绝未知车库等级、缺失引用及重复分配。
-已有车队的真实存档观察到司机接单、经验增长及收入；本次参数修正的游戏内影响仍待验证。首次请先补充少量，载入新槽位检查司机状态，
-推进游戏时间后观察任务及净收入。实际收益由技能、车库城市、任务、工资与运营成本决定；联机收益未验证。
-
-“永久油箱 / 电池扩容”（欧卡2）为选中的一辆自有卡车生成独立底盘 Mod，并另存命名副本。
-在存档页选择源档，选择卡车和目标容量（默认 5000；柴油用升、电池用 kWh，范围 100–10000，须高于原厂容量），预览后退出游戏再生成。
-Mod 安装到游戏文档目录的 `mod` 文件夹；先在游戏 Mod 管理器启用所显示的 Mod，再载入副本，保存和重启后容量继续生效。
-原底盘、其他卡车及源档保留；保留油量 / 电量比例，实际储能按新容量重新计算。已有同名但内容不同的 Mod 会拒绝覆盖。
-本机容量目录已核对 116 个欧卡 1.61 原厂柴油底盘，以及斯堪尼亚 S 2024 电动 4×2 底盘（原厂 624 kWh，需原厂 400 / 450 kW 发动机）。
-不支持未收录底盘、无法确认动力类型的配置或覆盖原底盘定义的 Mod；此方案供单人游戏使用。
-使用扩容副本期间必须保持 Mod 启用；需要移除时，先载入原始存档，再停用 Mod。游戏内载入及能耗尚待实际验证。
-
-“拆分为独立档案”可将同一档案内的多个存档分别复制到新的本地档案。退出对应游戏并等待同步完成后，
-在列表选中该档案的任一存档，点击按钮，勾选 TMP、ProMods、联运等需要保留的存档，为每项填写不同的档案名。
-每个新档案只携带对应存档，保留完整进度、预览、控制器及当前档案设置，原档案可继续使用；同名档案拒绝覆盖。
-支持加密、文本和 BSII 进度；档案及存档元信息须能解密为 SII 文本。云来源会合并对应的本地控制器设置，
-生成结果位于游戏文档目录的 `profiles`。先校验全部副本再发布；若发布中途失败，界面会列出已生成的档案。
-当前模组配置会被继承，存档依赖记录不足以还原历史模组顺序；首次载入新档案前，请在模组管理器检查启用项及顺序。
-实际游戏识别与载入仍需在游戏中确认。
-
-在「存档工具」中刷新、选择存档再读取数值、备份或导出。只有支持的明文字段才可修改；
-未知格式不会被当作可编辑的明文。操作存档时先退出游戏或返回不占用该存档的状态。
-
-“复制为新存档”支持欧卡／美卡同一档案内创建新存档槽：退出对应游戏、等待 Steam 同步完成，
-刷新列表并选择源存档，填写名称后开始复制。程序自动分配空闲数字编号，复制全部常规文件，
-保留 `game.sii`、预览及备份原始字节，只更新副本 `info.sii` 的名称和文件时间。
-加密元信息通过已有解码器读取，副本元信息保存为 `SiiNunit` 文本；不会改动原槽位。
-名称支持中文、引号和反斜杠，最多 64 个字符。复制在后台校验，支持取消；失败会清理暂存目录，
-如清理失败会显示具体路径。含子目录、重解析点、未知进度格式或缺失元信息的槽位会被拒绝。
-完成后在游戏中进入同一档案的载入列表查看。离线测试通过不等于实际游戏加载或 Steam 云同步验收。
-
-### 控制台和相机
-
-在游戏内功能页检查当前游戏的 `config.cfg` 和 `controls.sii`。启用开发者/控制台等配置时，
-程序会保留原行内容并创建 `config.cfg.trainer.bak`；游戏运行期间的配置写入保护仍保留。
-控制台命令示例：`g_set_time 12 0`、`g_police 0`、`g_fatigue 0`。
-城市传送使用当前游戏存档中的内部名：例如欧卡 `berlin`、美卡 `phoenix`。
-传送收藏按游戏分别保存，切换时不会丢弃另一游戏的收藏。
-
-### 发动机恢复和联机守卫
-
-发动机调节保留事务回滚、原厂值恢复和恢复凭据。未确认恢复的记录不会被丢弃，
-必要时阻止切换游戏。`engine_state` 保存欧卡凭据，`engine_state_ats` 保存美卡凭据；切换时分别装入。
-检测到 TruckersMP 时仅放行车辆页的自动无限油量／电量；无损、动力、经济与手动内存写入仍被拒绝。
-电动车可勾选「无限电量」或按 Ctrl+F6；它与无限油量互斥，共用已核对的能量比例字段。
-车辆页显示剩余能量百分比；原始遥测能量值不作为电池 kWh 容量解释。请根据当前车辆选择对应开关。
-官方 Convoy 检测由设置控制，开启后无法确认单机时
-同样拒绝写入。联机信息读取当前选择游戏的日志。
-
-## 实时日志与诊断
-
-每次启动界面会在修改器目录的 `logs/trainer_日期_时间_进程号.log` 创建独立会话日志。
-日志立即写入并刷新，包含完整日期、PID、目标游戏、权限和附加后的遥测信息；无需关闭修改器
-即可读取。界面「查看详细日志」显示当前日志路径。清空界面日志不会删除磁盘会话记录。
-正常退出仍保存 `ETS2Trainer.log` 摘要，旧摘要不能代表正在运行的最新会话。
-
-只读诊断命令：
-
-```powershell
-.\cpp\build\ETS2Trainer_test.exe --livetest --game=ats
-```
-
-该命令仅申请读取权限，即使附加失败也会独立检查遥测。美卡检查独立版本指纹、车辆遥测、发动机及银行/经济对象；不调用写入 API。
-返回 0 表示所列只读检查通过，返回 1 表示未通过或报告无法保存，具体原因在
-`cpp/build/live_test_report.txt`。只读通过不代表自动写入功能已经验证。
-
-当旧修改器仍在运行时，可使用 `build.bat next` 输出独立的 `ETS2Trainer_next.exe`，
-不会覆盖或关闭现有程序。退出旧修改器后再运行新版本，避免两个修改器同时控制游戏。
-
-## 构建和验证
-
-需要 Visual Studio 2022 Build Tools、C++ 工具集及 Windows SDK。
-ImGui 已随工程放在 `cpp/vendor/imgui-1.92.9`，构建无需下载依赖。
-
-原厂底盘定义和用户提供的电视模型资源不随源码发布。没有这些资源也可构建及运行离线回归；
-对应的容量生成 / 电视预设功能会明确提示资源缺失，相关资源测试会报告未覆盖。
-永久扩容需要先用官方 SCS Extractor 将当前游戏的 `def.scs`、`dlc_volvo_fh_2024.scs`、
-`dlc_man_tgx_2020.scs`、`dlc_scania_s_2024e.scs` 分别提取到本地目录，再在仓库根目录运行：
-
-```powershell
-python tools/dev/generate_fuel_catalog.py --root build/fuel-def-reference --root build/fuel-volvo-reference --root build/fuel-man-reference --root build/fuel-scania-electric-reference
-```
-
-生成文件位于忽略提交的 `cpp/build/fueltank_definitions.generated.h`。生成器拒绝同一路径的冲突定义；
-仅使用与运行游戏匹配的原厂提取结果，生成后再构建。执行 `build.bat clean` 后需要重新生成容量目录。
-电视预设仅在 `cpp/assets/home_presets/moran_scania_tv` 存在完整本地素材时嵌入。
+Developer checks:
 
 ```bat
 cd cpp
 build.bat test
 build\ETS2Trainer_test.exe --gametest
-build\ETS2Trainer_test.exe --crosstest
-build\ETS2Trainer_test.exe --smoketest --game=ets2
-build\ETS2Trainer_test.exe --smoketest --game=ats
-build.bat
+build\ETS2Trainer_test.exe --game=ats --enginetest
 ```
 
-`--gametest` 验证双游戏切换、设置、遥测缓冲区、备份隔离、车辆事务，以及发动机和经济定位
-的离线回归；内存测试针对自身或合成镜像。`--crosstest` 自行启动专用靶子进程。
-`--smoketest` 运行界面 30 帧后退出。测试程序在 `cpp/build` 使用独立设置和报告。
+`--gametest` runs offline regression checks. `--enginetest` reads the running game's vehicle/engine data. `--powertest --game=ats` temporarily applies 1.25× torque and restores it; run it only with a loaded single-player truck. Diagnostic reports stay local and must not be committed.
 
-旧 `--selftest` 包含真实存档的环境检查与备份操作，不能当作纯离线测试。
-`--livetest`、`--enginetest` 等诊断可能附加真实游戏；`--powertest` 会写入真实游戏内存。
-本次离线测试和界面冒烟不代表已完成两款游戏的实车稳定性验证。
+## Tools for adapting another build
 
-更详细的切换、恢复和验证边界见 [安全与验证说明](docs/safety-and-recovery.md)。
-本次功能与验收记录见 [2026-10-16 开发记录](docs/development-2026-10-16.md)。
+Running this trainer does **not** require Cheat Engine. Building it needs MSVC and Windows SDK. For reverse engineering, Python with `pefile` and `capstone` can inspect the PE image, code anchors and runtime fields. Cheat Engine or x64dbg is optional for interactive memory/disassembly work.
 
-真实美卡的上述只读检查已通过；尚未执行真实游戏写入验收。离线测试覆盖高转速动力、事务故障与恢复、对象错位、歧义和凭据隔离。
+The ATS 1.62 update changes the root instruction RVA and engine vtable, and inserts eight bytes before the truck engine wear/fuel ratio fields. Profiles store this shift separately so older supported builds keep their original layout. Engine object type checks use the profile matched against the running executable, not a default profile. Telemetry independently checks fuel capacity, fuel level and component wear before engine writes.
+
+See [docs/ats-1.62-validation.md](docs/ats-1.62-validation.md) for validation results and limits.

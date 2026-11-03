@@ -22,18 +22,18 @@ T loadAt(const uint8_t* data, size_t offset) {
 
 bool plausible(const TelemetrySnapshot& s, std::string* error) {
     if (!s.sdkActive) {
-        if (error) *error = "遥测插件已加载，但 SDK 当前未激活（请进入驾驶界面）";
+        if (error) *error = "Telemetry plug-in has been loaded, but the SDK is currently not activated (please enter the driving interface)";
         return false;
     }
     if (s.pluginRevision < 12) {
-        if (error) *error = fmt("遥测插件版本过旧（revision %u，需要 12+）", s.pluginRevision);
+        if (error) *error = fmt("Telemetry plug-in version is too old (revision %u, requires 12+)", s.pluginRevision);
         return false;
     }
     // 期望的 game 编号来自当前选择（欧卡2=1，美卡=2），不能只接受欧卡2。
     const unsigned expectedGame = selectedGameDescriptor().telemetryGame;
     if (s.game != expectedGame) {
         if (error) {
-            *error = fmt("共享内存 game=%u 与当前选择的%s不符（应为 %u），已拒绝使用该遥测数据",
+            *error = fmt("shared memory game=%u does not match the currently selected %s (should be %u), and the use of this telemetry data has been refused",
                          s.game, selectedGameDescriptor().shortName, expectedGame);
         }
         return false;
@@ -41,12 +41,12 @@ bool plausible(const TelemetrySnapshot& s, std::string* error) {
     if (!std::isfinite(s.fuel) || !std::isfinite(s.fuelCapacity) || s.fuel < 0.0f ||
         s.fuelCapacity <= 0.0f || s.fuelCapacity > 10000.0f ||
         s.fuel > s.fuelCapacity + 1000.0f) {
-        if (error) *error = "遥测油量数据不合理，可能是不兼容的共享内存布局";
+        if (error) *error = "The telemetry fuel data is unreasonable, possibly due to incompatible shared memory layout.";
         return false;
     }
     for (float value : s.wear) {
         if (!std::isfinite(value) || value < -0.001f || value > 1.001f) {
-            if (error) *error = "遥测损伤数据不合理，可能是不兼容的共享内存布局";
+            if (error) *error = "Telemetry damage data is unreasonable, possibly due to incompatible shared memory layout";
             return false;
         }
     }
@@ -58,7 +58,7 @@ bool plausible(const TelemetrySnapshot& s, std::string* error) {
 bool decodeTelemetryBuffer(const void* raw, size_t size, TelemetrySnapshot* out,
                            std::string* error) {
     if (!raw || !out || size < 1056) {
-        if (error) *error = "遥测共享内存数据不完整";
+        if (error) *error = "Telemetry shared memory data is incomplete";
         return false;
     }
     const auto* data = static_cast<const uint8_t*>(raw);
@@ -84,13 +84,13 @@ bool decodeTelemetryBuffer(const void* raw, size_t size, TelemetrySnapshot* out,
 
 bool readTelemetry(TelemetrySnapshot* out, std::string* error) {
     if (!out) {
-        if (error) *error = "遥测输出参数为空";
+        if (error) *error = "Telemetry output parameter is empty";
         return false;
     }
     HANDLE mapping = ::OpenFileMappingW(FILE_MAP_READ, FALSE, kMappingName);
     if (!mapping) {
         if (error) {
-            *error = fmt("未找到 %s（请确认游戏已加载 scs-telemetry.dll，错误码 %lu）",
+            *error = fmt("%s not found (please confirm that the game has loaded scs-telemetry.dll, error code %lu)",
                          "Local\\SCSTelemetry", (unsigned long)::GetLastError());
         }
         return false;
@@ -100,7 +100,7 @@ bool readTelemetry(TelemetrySnapshot* out, std::string* error) {
     if (!view) {
         DWORD code = ::GetLastError();
         ::CloseHandle(mapping);
-        if (error) *error = fmt("打开遥测共享内存失败（错误码 %lu）", (unsigned long)code);
+        if (error) *error = fmt("Failed to open telemetry shared memory (error code %lu)", (unsigned long)code);
         return false;
     }
 
@@ -123,7 +123,7 @@ bool readTelemetry(TelemetrySnapshot* out, std::string* error) {
     ::UnmapViewOfFile(view);
     ::CloseHandle(mapping);
     if (!ok && error) {
-        *error = localError.empty() ? "遥测数据更新过快，请重试" : localError;
+        *error = localError.empty() ? "Telemetry data is updated too quickly, please try again" : localError;
     }
     return ok;
 }

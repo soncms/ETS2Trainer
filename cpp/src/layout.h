@@ -15,6 +15,8 @@ struct LayoutProfile {
     const char* version = "";
     uint64_t fuelFormulaRva = 0;
     std::array<uint8_t,16> fuelFormulaInstruction{};
+    // ATS 1.62 inserts eight bytes before the engine wear/energy fields.
+    uint64_t truckTailShift = 0;
 };
 const std::vector<LayoutProfile>& layoutProfiles(GameId game);
 const LayoutProfile& layoutProfile(GameId game);

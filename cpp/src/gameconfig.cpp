@@ -90,7 +90,7 @@ bool readGameConfigText(std::string* text, std::string* error) {
     std::vector<uint8_t> bytes;
     const std::wstring path = gameConfigPath();
     if (!readFileBytes(path, bytes) || bytes.empty()) {
-        if (error) *error = "读不到 config.cfg（" + W2U(path) + "）";
+        if (error) *error = "cannot read config.cfg (" + W2U(path) + "）";
         return false;
     }
     text->assign(bytes.begin(), bytes.end());
@@ -105,7 +105,7 @@ bool writeGameConfigText(const std::string& text, std::string* error,
         const std::wstring backup = path + L".trainer.bak";
         if (::GetFileAttributesW(backup.c_str()) == INVALID_FILE_ATTRIBUTES) {
             if (!writeFileBytes(backup, original)) {
-                if (error) *error = "无法写入 config.cfg.trainer.bak，为避免丢失原配置已取消修改";
+                if (error) *error = "Unable to write to config.cfg.trainer.bak, the modification has been canceled to avoid losing the original configuration.";
                 return false;
             }
         }
@@ -113,7 +113,7 @@ bool writeGameConfigText(const std::string& text, std::string* error,
     }
     std::vector<uint8_t> bytes(text.begin(), text.end());
     if (!writeFileBytes(path, bytes)) {
-        if (error) *error = "写入 config.cfg 失败（文件可能只读或被占用）";
+        if (error) *error = "Failed to write config.cfg (the file may be read-only or occupied)";
         return false;
     }
     return true;

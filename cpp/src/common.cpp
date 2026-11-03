@@ -107,7 +107,7 @@ void appendLogLocked(const std::string& line) {
     DWORD written = 0;
     if (!::WriteFile(g_logFile, bytes.data(), (DWORD)bytes.size(), &written, nullptr) ||
         written != bytes.size() || !::FlushFileBuffers(g_logFile)) {
-        g_logError = fmt("实时日志写入失败（错误 %lu）：%s", (unsigned long)::GetLastError(),
+        g_logError = fmt("Real-time log writing failed (error %lu): %s", (unsigned long)::GetLastError(),
                          W2U(g_logPath).c_str());
         ::CloseHandle(g_logFile);
         g_logFile = INVALID_HANDLE_VALUE;
@@ -134,7 +134,7 @@ std::vector<std::string> logSnapshot() {
 void logClear() {
     std::lock_guard<std::mutex> lock(g_logMutex);
     g_log.clear();
-    appendLogLocked("[界面日志已清空，磁盘会话日志继续保留]");
+    appendLogLocked("[The interface log has been cleared, and the disk session log continues to be retained]");
 }
 
 bool logStartFile(const std::wstring& path, std::string* error) {
@@ -142,7 +142,7 @@ bool logStartFile(const std::wstring& path, std::string* error) {
     HANDLE file = ::CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
                                 CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE) {
-        const std::string reason = fmt("无法创建实时日志（错误 %lu）：%s",
+        const std::string reason = fmt("Unable to create real-time log (error %lu): %s",
             (unsigned long)::GetLastError(), W2U(path).c_str());
         if (error) *error = reason;
         g_logError = reason;

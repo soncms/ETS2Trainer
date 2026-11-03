@@ -117,11 +117,11 @@ double toleranceValue(AppState& app, PanelKind kind) {
 }
 
 const char* panelName(PanelKind kind) {
-    if (kind == PanelKind::Money) return "现金";
-    if (kind == PanelKind::Xp) return "经验";
-    if (kind == PanelKind::Fuel) return "油量";
-    if (kind == PanelKind::Damage) return "损坏";
-    return "扫描器";
+    if (kind == PanelKind::Money) return "Cash";
+    if (kind == PanelKind::Xp) return "Experience";
+    if (kind == PanelKind::Fuel) return "fuel level";
+    if (kind == PanelKind::Damage) return "damaged";
+    return "scanner";
 }
 
 void resetProcessState(AppState& app) {
@@ -132,7 +132,7 @@ void resetProcessState(AppState& app) {
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
         app.engineStateText = app.engineTuner->exportState();
-        app.engineStatus = "未启用。动力调节直接改写发动机数据，不扫描内存。";
+        app.engineStatus = "is not enabled. Power adjustment directly rewrites engine data without scanning the memory.";
     }
     if (app.vehicleLocker) app.vehicleLocker->stop();
     if (app.freezer) {
@@ -152,12 +152,12 @@ void resetProcessState(AppState& app) {
     app.autoFuelLock = false;
     app.autoElectricLock = false;
     app.autoDamageLock = false;
-    app.moneyStatus = "未附加：请重新扫描现金。";
-    app.xpStatus = "未附加：请重新扫描经验。";
-    app.fuelStatus = "未附加：无限油量已停止。";
-    app.electricStatus = "未附加：无限电量已停止。";
-    app.damageStatus = "未附加：车辆无损已停止。";
-    app.scanStatus = "未附加：扫描已失效。";
+    app.moneyStatus = "Not attached: Please rescan cash.";
+    app.xpStatus = "is not attached: Please rescan the experience.";
+    app.fuelStatus = "Not attached: Infinite fuel has been stopped.";
+    app.electricStatus = "Not attached: Unlimited power has stopped.";
+    app.damageStatus = "Not attached: The vehicle has stopped without damage.";
+    app.scanStatus = "Not attached: Scan has failed.";
     // 结构化定位结果绑定的地址随进程失效，必须一起清掉
     app.locatedMoneyAddress = 0;
     app.locatedMoneyBank = 0;
@@ -167,7 +167,7 @@ void resetProcessState(AppState& app) {
     app.locatedEconomy = 0;
     app.locatedXpValue = 0;
     app.locatedXpDetail.clear();
-    app.locateStatus = "未定位。填好游戏里的当前金额后点「直接改钱」，程序会自动定位再写入，全程免锁定。";
+    app.locateStatus = "is not located. After filling in the current amount in the game, click \"Change Money Directly\", and the program will automatically locate and write it, without locking the entire process.";
     app.autoWriteMoneyAfterLocate = false;
     app.autoWriteXpAfterLocate = false;
     app.pendingMultiAction = 0;
@@ -254,14 +254,14 @@ bool validatePanelBindings(std::string* error) {
         if (currentFor(app, kinds[i]) != expectedCurrent[i] ||
             targetFor(app, kinds[i]) != expectedTarget[i] ||
             lockFor(app, kinds[i]) != expectedLock[i]) {
-            if (error) *error = fmt("面板 %d 的输入/锁定绑定错误", (int)kinds[i]);
+            if (error) *error = fmt("input/lock binding error for panel %d", (int)kinds[i]);
             return false;
         }
     }
     double parsed = 0;
     if (!parseNumber("9007199254740991", false, &parsed) ||
         parseNumber("9007199254740992", false, &parsed) || parseNumber("12.5", false, &parsed)) {
-        if (error) *error = "整数精度边界校验失败";
+        if (error) *error = "Integer precision boundary check failed";
         return false;
     }
     return true;
@@ -323,7 +323,7 @@ bool validateAttachedSessionReuse(std::string* error) {
     if (!app.mem.open(::GetCurrentProcessId(), "attached-session-test", error)) return false;
     // 失败时直接返回，绝不让离线测试落入查找/附加真实游戏的分支。
     if (!app.mem.alive()) {
-        if (error) *error = "活进程被误判为退出；连续启用会重新附加并重置功能";
+        if (error) *error = "The live process is misjudged as exiting; continuous activation will reattach and reset the function";
         return false;
     }
     app.pid = ::GetCurrentProcessId();
@@ -337,7 +337,7 @@ bool validateAttachedSessionReuse(std::string* error) {
             !app.moneyLock || !app.xpLock ||
             app.enginePowerOption != 3 || !app.engineRaiseLimit ||
             app.locatedMoneyAddress != 123 || app.mem.pid() != ::GetCurrentProcessId()) {
-            if (error) *error = "复用当前附加会话时已有功能/定位状态被重置";
+            if (error) *error = "Existing function/positioning status is reset when reusing the current attached session";
             return false;
         }
     }
@@ -357,7 +357,7 @@ bool selectGame(AppState& app, GameId id, const std::wstring& settingsPath) {
     if (app.engineTuner && (app.engineTuner->active() ||
                             app.engineTuner->hasInvalidatedRecord() ||
                             !app.engineTuner->exportState().empty())) {
-        app.procStatus = "切换已取消：发动机原值尚未确认恢复，请先完成恢复再切换游戏。";
+        app.procStatus = "Switching canceled: The original engine value has not been restored yet. Please complete the restoration before switching games.";
         logLine(app.procStatus);
         return false;
     }
@@ -391,33 +391,33 @@ bool selectGame(AppState& app, GameId id, const std::wstring& settingsPath) {
     app.telemetryCheckedAt = 0;
     app.telemetryError.clear();
     app.saveMoney[0] = app.saveXp[0] = '\0';
-    app.saveNote = "请选择当前游戏的存档。";
+    app.saveNote = "Please select the archive of the current game.";
     app.requestRestoreConfirm = app.showBackupDialog = false;
     app.camera = {};
     app.cameraLoaded = false;
     app.flyDeveloper = app.flyConsole = -1;
     app.flySpeedSaved.clear();
     ::strcpy_s(app.flySpeed, "100");
-    app.flyNote = "请重新检查当前游戏的 config.cfg 和相机按键。";
+    app.flyNote = "Please recheck the config.cfg and camera buttons of the current game.";
     app.consoleKey = 0xC0;
     ::strcpy_s(app.consoleCmd, "g_set_time 12 0");
     app.consoleNote.clear();
     app.convoy = {};
-    app.convoyNote = "请刷新当前游戏的联机状态。";
+    app.convoyNote = "Please refresh the online status of the current game.";
     app.cityFilter[0] = app.cityInput[0] = app.coordInput[0] = app.spotName[0] = '\0';
-    app.teleportNote = "请读取当前游戏的城市列表。";
+    app.teleportNote = "Please read the city list of the current game.";
     app.lastEngineStateRevision = app.lastEngineSaveTick = 0;
     app.mapCities.clear();
     app.mapCitySelected = -1;
     app.mpHits.clear();
     app.memInfo.clear();
-    app.procStatus = fmt("已切换到%s：请附加 %s；存档/配置/备份均按该游戏路径读取。",
+    app.procStatus = fmt("has been switched to %s: please append %s; archives/configurations/backups are all read according to the game path.",
                          selectedGameDescriptor().shortName,
                          W2U(selectedProcessName()).c_str());
     logLine(app.procStatus);
     if (!supportsVerifiedStructures(selectedGame())) logLine(structuralWriteBlockReason());
     const bool saved = settingsPath.empty() ? saveSettings(app) : saveSettingsTo(app, settingsPath);
-    if (!saved) app.procStatus += "（设置保存失败，当前选择仅在本次运行生效）";
+    if (!saved) app.procStatus += "(Failed to save settings, current selection only takes effect in this run)";
     return true;
 }
 
@@ -429,7 +429,7 @@ void attachGame(AppState& app) {
     if (!findProcess(selectedProcessName(), &pid, &exe)) {
         resetProcessState(app);
         app.mem.close();
-        app.procStatus = fmt("没有找到 %s，请先启动游戏", W2U(selectedProcessName()).c_str());
+        app.procStatus = fmt("%s not found, please start the game first", W2U(selectedProcessName()).c_str());
         logLine(app.procStatus);
         app.attached = false;
         // 清掉上一轮的进程/联机痕迹，避免界面显示与当前状态矛盾
@@ -444,7 +444,7 @@ void attachGame(AppState& app) {
     enableDebugPrivilege();
     std::string err;
     if (!app.mem.open(pid, W2U(exe), &err)) {
-        app.procStatus = "附加失败：" + err;
+        app.procStatus = "Attach failed:" + err;
         logLine(app.procStatus);
         app.attached = false;
         app.pid = 0;
@@ -465,28 +465,28 @@ void attachGame(AppState& app) {
     // 不捕获 AppState：worker 线程只读线程安全的策略快照。
     app.vehicleLocker->setWriteGuard([]() { return writeGateReasonFromPolicy(); });
     app.vehicleLocker->setFuelWriteGuard([]() { return fuelWriteGateReasonFromPolicy(); });
-    app.procStatus = fmt("已附加：%s (PID %u)", W2U(exe).c_str(), pid);
+    app.procStatus = fmt("Attached: %s (PID %u)", W2U(exe).c_str(), pid);
     app.mpHits = detectMultiplayer(pid);
     MultiplayerStatus mp = checkMultiplayer(pid, true);
     app.mpBlocks = mp.blocksWrite();
     app.mpDetail = mp.detail;
     if (mp.blocksWrite()) {
-        logLine("联机保护：" + mp.detail + "；TruckersMP 仅放行自动无限油量／电量，其他内存写入仍受限。");
+        logLine("online protection:" + mp.detail + "; TruckersMP only allows automatic unlimited fuel/power, and other memory writes are still limited.");
     }
     std::vector<Region> regions = app.mem.regions(maxRegionBytes(app));
     uint64_t total = 0;
     for (const auto& r : regions) total += r.size;
-    app.memInfo = fmt("可写内存：%d 个区域，共 %s", (int)regions.size(),
+    app.memInfo = fmt("Writable memory: %d areas, total %s\nOnline detection after", (int)regions.size(),
                       formatSize(total).c_str());
     logLine(app.procStatus);
     logLine(app.memInfo);
-    logLine("附加后联机检测：" + mp.detail);
+    logLine("is attached:" + mp.detail);
     TelemetrySnapshot telemetry;
     std::string telemetryError;
     if (readTelemetry(&telemetry, &telemetryError))
-        logLine(fmt("附加后遥测：game=%u revision=%u fuel=%.2f/%.2f L", telemetry.game,
+        logLine(fmt("attached post telemetry: game=%u revision=%u fuel=%.2f/%.2f L", telemetry.game,
             telemetry.pluginRevision, telemetry.fuel, telemetry.fuelCapacity));
-    else logLine("附加后遥测不可用：" + telemetryError);
+    else logLine("Telemetry not available after attachment:" + telemetryError);
 }
 
 void detachGame(AppState& app) {
@@ -497,9 +497,9 @@ void detachGame(AppState& app) {
     app.attached = false;
     app.pid = 0;
     app.mpHits.clear();
-    app.procStatus = "未附加：请先启动游戏，再点「附加游戏」";
+    app.procStatus = "is not attached: please start the game first, then click \"Attach Game\"";
     app.memInfo.clear();
-    logLine("已分离进程");
+    logLine("Process detached");
 }
 
 void initFonts(AppState& app) {
@@ -800,27 +800,27 @@ std::string writeGateReason(AppState& app) {
 bool parseXpTarget(const char* text, int32_t* out, std::string* error) {
     double value = 0.0;
     if (!parseNumber(text, false, &value)) {
-        if (error) *error = "「要改成的经验」不是有效数字";
+        if (error) *error = "\"The experience to be changed to\" is not a valid number";
         return false;
     }
     // 先做范围判断，再转换：越界转换是未定义行为，绝不允许
     if (value < (double)INT32_MIN || value > (double)INT32_MAX) {
-        if (error) *error = fmt("目标经验超出 32 位整数范围（%lld ~ %lld）", (long long)INT32_MIN,
+        if (error) *error = fmt("The target experience exceeds the 32-bit integer range (%lld ~ %lld)", (long long)INT32_MIN,
                                 (long long)INT32_MAX);
         return false;
     }
     const int32_t converted = (int32_t)value;
     if ((double)converted != value) {
-        if (error) *error = "目标经验必须是整数";
+        if (error) *error = "Target experience must be an integer";
         return false;
     }
     if (converted < 0) {
-        if (error) *error = "目标经验不能是负数";
+        if (error) *error = "target experience cannot be a negative number";
         return false;
     }
     if (converted > kXpBusinessMax) {
         if (error) {
-            *error = fmt("目标经验超出安全上限（0 ~ %lld）", (long long)kXpBusinessMax);
+            *error = fmt("The target experience exceeds the safe upper limit (0 ~ %lld)", (long long)kXpBusinessMax);
         }
         return false;
     }
@@ -832,12 +832,12 @@ bool parseXpTarget(const char* text, int32_t* out, std::string* error) {
 bool parseMoneyTarget(const char* text, int64_t* out, std::string* error) {
     double value = 0.0;
     if (!parseNumber(text, false, &value)) {
-        if (error) *error = "「要改成的金额」不是有效数字";
+        if (error) *error = "\"The amount to be changed\" is not a valid number";
         return false;
     }
     if (value < -(double)kMoneyLimit || value > (double)kMoneyLimit) {
         if (error) {
-            *error = fmt("目标金额超出安全范围（-%lld ~ %lld）", (long long)kMoneyLimit,
+            *error = fmt("The target amount exceeds the safe range (-%lld ~ %lld)", (long long)kMoneyLimit,
                          (long long)kMoneyLimit);
         }
         return false;
@@ -851,7 +851,7 @@ bool writeBankMoneyGuarded(AppState& app, uint64_t moneyAddress, uint64_t expect
                            int64_t value, std::string* error) {
     const std::string gate = writeGateReason(app);  // 写入前一刻复核联机状态
     if (!gate.empty()) {
-        if (error) *error = "联机保护：" + gate;
+        if (error) *error = "online protection:" + gate;
         return false;
     }
     return writeBankMoneyVerified(app.mem, moneyAddress, expectedBank, value, error);
@@ -861,7 +861,7 @@ bool writeXpGuarded(AppState& app, uint64_t xpAddress, uint64_t expectedEconomy,
                     std::string* error) {
     const std::string gate = writeGateReason(app);
     if (!gate.empty()) {
-        if (error) *error = "联机保护：" + gate;
+        if (error) *error = "online protection:" + gate;
         return false;
     }
     return writeEconomyExperienceVerified(app.mem, xpAddress, expectedEconomy, value, error);
@@ -872,11 +872,11 @@ bool writeXpGuarded(AppState& app, uint64_t xpAddress, uint64_t expectedEconomy,
 // ==========================================================================
 void startFirstScan(AppState& app, PanelKind kind) {
     if (app.busy.load()) {
-        statusFor(app, kind) = "已有扫描正在进行，请等它结束或点「取消」";
+        statusFor(app, kind) = "A scan is in progress, please wait for it to end or click \"Cancel\"";
         return;
     }
     if (!ensureAttached(app)) {
-        statusFor(app, kind) = "还没有附加到游戏进程";
+        statusFor(app, kind) = "has not been attached to the game process yet";
         return;
     }
     joinWorker(app);
@@ -892,7 +892,7 @@ void startFirstScan(AppState& app, PanelKind kind) {
     const char* text = currentFor(app, kind);
     double value = 0.0;
     if (!parseNumber(text, isFloat, &value)) {
-        statusFor(app, kind) = "请在「当前数值」里填写一个有效数字（例如 45678）";
+        statusFor(app, kind) = "Please fill in a valid number (for example 45678) in \"Current Value\"";
         return;
     }
     ScanOptions opt;
@@ -911,13 +911,13 @@ void startFirstScan(AppState& app, PanelKind kind) {
     else app.scanSession = std::move(session);
 
     statusFor(app, kind) =
-        fmt("首次扫描 %s = %s 进行中……（约 10~25 秒）", vtypeName(type), text);
-    logLine(fmt("[%s] 首次扫描 %s = %s ...", panelName(kind), vtypeName(type), text));
+        fmt("first scan %s = %s in progress... (about 10~25 seconds)", vtypeName(type), text);
+    logLine(fmt("[%s] First scan %s = %s ...", panelName(kind), vtypeName(type), text));
     app.busy.store(true);
     app.cancel.store(false);
     app.progressDone.store(0);
     app.progressTotal.store(1);
-    app.progressNote = "首次扫描中";
+    app.progressNote = "Scanning for the first time";
     const double scanValue = value;
     app.worker = std::thread([&app, raw, opt, scanValue, kind, type]() {
         uint64_t hits = raw->firstScan(
@@ -932,34 +932,34 @@ void startFirstScan(AppState& app, PanelKind kind) {
         if (cancelled) {
             raw->clear();
             hits = 0;
-            tip = "已取消，不保留不完整的候选地址。";
+            tip = "has been canceled and incomplete candidate addresses will not be retained.";
         } else if (raw->limitReached()) {
-            tip = "命中过多（超过 200 万），已丢弃不完整结果；请缩小扫描范围或避开常见值。";
+            tip = "Too many hits (over 2 million), incomplete results discarded; please narrow the scan or avoid common values.";
         } else if (hits == 0) {
-            tip = "没找到。请确认数值没填错；也可以在游戏里让数值变化后重扫。";
+            tip = "not found. Please make sure the values ​​are correct; you can also change the values ​​in the game and scan again.";
         } else if (hits == 1) {
-            tip = "已收敛到 1 个候选地址，可以写入。";
+            tip = "has converged to 1 candidate address and can be written.";
         } else {
-            tip = "还有多个候选：建议继续收窄；强行写入前会再次确认。";
+            tip = ": it is recommended to continue narrowing; it will be confirmed again before forcibly writing.";
         }
-        std::string status = fmt("命中 %llu 处（%s）。%s", (unsigned long long)hits,
+        std::string status = fmt("hits %llu (%s). %s", (unsigned long long)hits,
                                  vtypeName(type), tip.c_str());
         postResult(app, kind, status,
-                   fmt("[%s] 首次扫描完成：命中 %llu 处", panelName(kind),
+                   fmt("[%s] First scan completed: hit %llu", panelName(kind),
                        (unsigned long long)hits),
-                   cancelled ? "首次扫描已取消" : "首次扫描完成");
+                   cancelled ? "First scan canceled" : "first scan completed");
         app.busy.store(false);
     });
 }
 
 void startNextScan(AppState& app, PanelKind kind, ScanMode mode) {
     if (app.busy.load()) {
-        statusFor(app, kind) = "已有扫描正在进行";
+        statusFor(app, kind) = "is already scanning in progress";
         return;
     }
     ScanSession* session = sessionFor(app, kind);
     if (!session || session->empty()) {
-        statusFor(app, kind) = "请先做一次「首次扫描」";
+        statusFor(app, kind) = "Please do a \"first scan\" first";
         return;
     }
     joinWorker(app);
@@ -969,14 +969,14 @@ void startNextScan(AppState& app, PanelKind kind, ScanMode mode) {
     const char* text = currentFor(app, kind);
     double value = 0.0;
     if (mode == ScanMode::Exact && !parseNumber(text, isFloat, &value)) {
-        statusFor(app, kind) = "请先在「当前数值」里填写游戏里现在的新数值";
+        statusFor(app, kind) = "Please first fill in the new value in the game in \"Current Value\"";
         return;
     }
     app.busy.store(true);
     app.cancel.store(false);
     app.progressDone.store(0);
     app.progressTotal.store(1);
-    app.progressNote = "收窄中";
+    app.progressNote = "is narrowing";
     app.worker = std::thread([&app, session, mode, value, kind]() {
         uint64_t hits = session->nextScan(
             mode, value,
@@ -987,33 +987,33 @@ void startNextScan(AppState& app, PanelKind kind, ScanMode mode) {
             [&app]() { return app.cancel.load(); });
         const bool cancelled = app.cancel.load();
         std::string status = cancelled
-                                 ? "收窄已取消，原候选地址已保留。"
-                                 : fmt("收窄后剩余 %llu 处。", (unsigned long long)hits);
-        if (!cancelled && hits == 0) status += "可能数值已经变了，建议重新扫描。";
-        else if (!cancelled && hits == 1) status += "已收敛到 1 个候选地址。";
-        else if (!cancelled && hits > 1) status += "建议继续收窄。";
+                                 ? "narrowing has been cancelled, and the original candidate address has been retained."
+                                 : fmt("remains at %llu after narrowing.", (unsigned long long)hits);
+        if (!cancelled && hits == 0) status += "The value may have changed. It is recommended to scan again.";
+        else if (!cancelled && hits == 1) status += "has converged to 1 candidate address.";
+        else if (!cancelled && hits > 1) status += "It is recommended to continue narrowing.";
         postResult(app, kind, status,
-                   fmt("[%s] 收窄：剩余 %llu 处", panelName(kind), (unsigned long long)hits),
-                   cancelled ? "收窄已取消" : "收窄完成");
+                   fmt("[%s] narrows: remaining at %llu", panelName(kind), (unsigned long long)hits),
+                   cancelled ? "narrowing has been cancelled" : "narrowing completed");
         app.busy.store(false);
     });
 }
 
 void writePanelValues(AppState& app, PanelKind kind, bool confirmed) {
     if (app.busy.load()) {
-        statusFor(app, kind) = "请等当前操作结束";
+        statusFor(app, kind) = "Please wait until the current operation is completed";
         return;
     }
     ScanSession* session = sessionFor(app, kind);
     if (!session || session->empty()) {
-        statusFor(app, kind) = "请先扫描出地址再写入";
+        statusFor(app, kind) = "Please scan the address first and then write it";
         return;
     }
     const bool isFloat = vtypeInfo(session->type()).isFloat;
     const char* text = targetFor(app, kind);
     double value = 0.0;
     if (!parseNumber(text, isFloat, &value)) {
-        statusFor(app, kind) = "请在「要改成」里填写目标数值";
+        statusFor(app, kind) = "Enter the target value in New value";
         return;
     }
     const size_t total = session->count();
@@ -1022,15 +1022,15 @@ void writePanelValues(AppState& app, PanelKind kind, bool confirmed) {
         app.pendingMultiKind = (int)kind;
         app.requestMultiConfirm = true;
         statusFor(app, kind) =
-            fmt("尚有 %d 个候选地址：建议继续收窄，或在确认框中明确批量写入。",
+            fmt("%d candidate addresses remain. Narrow the results or confirm a batch write.",
                 (int)total);
         return;
     }
     const size_t written =
         isFloat ? session->writeAllNumber(value) : session->writeAllInt((int64_t)value);
-    statusFor(app, kind) = fmt("已写入 %d/%d 个地址 = %s（游戏里立刻可见）", (int)written,
+    statusFor(app, kind) = fmt("Wrote %d/%d addresses = %s (applied in game)", (int)written,
                                (int)total, text);
-    logLine(fmt("[%s] 写入 %s：成功 %d/%d", panelName(kind), text, (int)written, (int)total));
+    logLine(fmt("[%s] Write %s: %d/%d succeeded", panelName(kind), text, (int)written, (int)total));
     bool* lockState = lockFor(app, kind);
     const bool locked = lockState && *lockState;
     if (locked && app.freezer) {
@@ -1044,13 +1044,13 @@ void togglePanelLock(AppState& app, PanelKind kind, bool lock, bool confirmed) {
     ScanSession* session = sessionFor(app, kind);
     if (!session || session->empty() || !app.freezer) {
         if (bool* state = lockFor(app, kind)) *state = false;
-        statusFor(app, kind) = "请先扫描出地址再锁定";
+        statusFor(app, kind) = "Scan for an address before freezing";
         return;
     }
     if (!lock) {
         for (uint64_t addr : session->addresses()) app.freezer->remove(addr);
-        statusFor(app, kind) = "已解除锁定。";
-        logLine(fmt("[%s] 已解除锁定", panelName(kind)));
+        statusFor(app, kind) = "Values unfrozen.";
+        logLine(fmt("[%s] Values unfrozen", panelName(kind)));
         return;
     }
     if (session->count() > 1 && !confirmed) {
@@ -1059,7 +1059,7 @@ void togglePanelLock(AppState& app, PanelKind kind, bool lock, bool confirmed) {
         app.pendingMultiKind = (int)kind;
         app.requestMultiConfirm = true;
         statusFor(app, kind) =
-            fmt("尚有 %d 个候选地址：锁定所有地址前需要确认。", (int)session->count());
+            fmt("%d candidate addresses remain; confirm before freezing all.", (int)session->count());
         return;
     }
     const bool isFloat = vtypeInfo(session->type()).isFloat;
@@ -1067,13 +1067,13 @@ void togglePanelLock(AppState& app, PanelKind kind, bool lock, bool confirmed) {
     double value = 0.0;
     if (!parseNumber(text, isFloat, &value)) {
         if (bool* state = lockFor(app, kind)) *state = false;
-        statusFor(app, kind) = "请先填写要锁定的目标数值";
+        statusFor(app, kind) = "Enter a target value before freezing";
         return;
     }
     for (uint64_t addr : session->addresses()) app.freezer->add(addr, session->type(), value);
-    statusFor(app, kind) = fmt("已锁定 %d 个地址 = %s（每 0.25 秒写回一次）",
+    statusFor(app, kind) = fmt("locked %d addresses = %s (writeback every 0.25 seconds)",
                                (int)session->count(), text);
-    logLine(fmt("[%s] 已锁定 %d 个地址", panelName(kind), (int)session->count()));
+    logLine(fmt("[%s] %d addresses locked", panelName(kind), (int)session->count()));
 }
 
 // ==========================================================================
@@ -1082,14 +1082,14 @@ void togglePanelLock(AppState& app, PanelKind kind, bool lock, bool confirmed) {
 void sendConsole(AppState& app, const std::string& command) {
     if (command.empty()) return;
     if (app.busy.load()) {
-        app.consoleNote = "请先等待当前扫描结束，或取消扫描。";
+        app.consoleNote = "Please wait for the current scan to end or cancel the scan.";
         return;
     }
     const std::string gate = multiplayerGateForSafeFeature(app);
     if (!gate.empty()) {
         app.consoleNote = gate;
         app.teleportNote = gate;
-        logLine("控制台命令被拦截：" + gate);
+        logLine("console command is intercepted:" + gate);
         return;
     }
     ::strncpy_s(app.consoleCmd, command.c_str(), _TRUNCATE);
@@ -1098,25 +1098,25 @@ void sendConsole(AppState& app, const std::string& command) {
     if (!pid || !app.mem.alive()) {
         std::wstring exe;
         if (!findProcess(selectedProcessName(), &pid, &exe)) {
-            app.consoleNote = fmt("没有找到 %s，请先启动游戏。", W2U(selectedProcessName()).c_str());
+            app.consoleNote = fmt("%s not found, please start the game first.", W2U(selectedProcessName()).c_str());
             return;
         }
     }
-    logLine("正在把命令发送到游戏：" + command);
+    logLine("is sending commands to the game:" + command);
     joinWorker(app);
     // 上一个工作任务可能已完成但结果尚未在 renderApp 消费，先交付再复用单槽。
     applyPending(app);
     app.busy.store(true);
     app.progressDone.store(0);
     app.progressTotal.store(1);
-    app.progressNote = "发送控制台命令中";
+    app.progressNote = "is sending console command";
     app.worker = std::thread([&app, command, vk, pid]() {
         SendResult result = sendConsoleCommand(command, vk, pid, true);
         {
             std::lock_guard<std::mutex> lock(app.resultMutex);
             app.pendingLog = result.message;
             app.pendingStatus.clear();
-            app.pendingProgressNote = result.ok ? "控制台命令已发送" : "控制台命令发送失败";
+            app.pendingProgressNote = result.ok ? "console command sent" : "Console command failed to send";
             app.pendingKind = (int)PanelKind::Money;
             app.pendingReady = true;
         }
@@ -1153,34 +1153,34 @@ void handleGlobalHotkeys(AppState& app) {
     switch (kHotkeys[fired]) {
     case VK_F1:  // Ctrl + F1: 传送到导航终点（游戏内再按 Ctrl+F9 落车）
         teleportTo(app, "nav_end");
-        logLine("[热键] 传送到导航终点 (goto nav_end)；到位置后按 Ctrl+F9 落车");
+        logLine("[Hotkey] Teleport to the navigation end point (goto nav_end); press Ctrl+F9 to exit the vehicle after arriving at the location");
         break;
     case VK_F2:  // Ctrl + F2: 切换无限油量
         toggleAutoVehicleLock(app, true, !app.autoFuelLock);
-        logLine(std::string("[热键] 无限油量: ") + (app.autoFuelLock ? "开启" : "关闭"));
+        logLine(std::string("[Hotkey] Unlimited fuel volume: ") + (app.autoFuelLock ? "on" : "Close"));
         break;
     case VK_F6:  // Ctrl + F6: 切换无限电量
         toggleAutoVehicleLock(app, true, !app.autoElectricLock, true);
-        logLine(std::string("[热键] 无限电量: ") + (app.autoElectricLock ? "开启" : "关闭"));
+        logLine(std::string("[Hotkey] Unlimited battery: ") + (app.autoElectricLock ? "on" : "Close"));
         break;
     case VK_F3:  // Ctrl + F3: 切换车辆无损
         toggleAutoVehicleLock(app, false, !app.autoDamageLock);
-        logLine(std::string("[热键] 车辆无损: ") + (app.autoDamageLock ? "开启" : "关闭"));
+        logLine(std::string("[Hotkey] Vehicle intact: ") + (app.autoDamageLock ? "on" : "Close"));
         break;
     case VK_F4:  // Ctrl + F4: 切换发动机动力
     {
         int nextOpt = (app.enginePowerOption == 0) ? 3 : 0;
         applyEnginePower(app, nextOpt, nextOpt > 0);
-        logLine(std::string("[热键] 发动机动力切换为: ") + (nextOpt == 0 ? "原厂" : "2.0x 狂飙"));
+        logLine(std::string("[Hotkey] Engine power switch is: ") + (nextOpt == 0 ? "Stock" : "2.0x Cyclonus"));
         break;
     }
     case VK_F5:  // Ctrl + F5: 快速把游戏时间设为 09:00
         sendConsole(app, "g_set_time 9 0");
-        logLine("[热键] 游戏时间已设为 09:00");
+        logLine("[Hotkey] Game time has been set to 09:00");
         break;
     case VK_BACK:  // Ctrl + Backspace: 撤销传送
         teleportTo(app, "back");
-        logLine("[热键] 撤销传送 (goto back)");
+        logLine("[Hotkey] Undo transmission (goto back)");
         break;
     default:
         break;
@@ -1210,7 +1210,7 @@ void toggleAutoVehicleLock(AppState& app, bool fuel, bool enabled, bool electric
         }
         state = false;
         if (fuel) app.autoFuelLock = app.autoElectricLock = false;
-        status = fuel ? (electric ? "无限电量已关闭。" : "无限油量已关闭。") : "无损锁定已关闭。";
+        status = fuel ? (electric ? "unlimited power is turned off." : "Unlimited fuel is turned off.") : "Lossless locking is turned off.";
         return;
     }
     if (const std::string reason = structuralWriteBlockReason(); !reason.empty()) {
@@ -1221,13 +1221,13 @@ void toggleAutoVehicleLock(AppState& app, bool fuel, bool enabled, bool electric
     }
     if (!ensureAttached(app)) {
         state = false;
-        status = "还没有附加到游戏进程";
+        status = "has not been attached to the game process yet";
         return;
     }
     updateWriteGatePolicy(app);
     if (!fuel && !app.mpHits.empty()) {
         state = false;
-        status = "检测到联机特征，已拒绝启用车辆锁定；请只在单机使用。";
+        status = "The online feature has been detected and vehicle locking has been refused; please only use it on a single-player.";
         return;
     }
     {
@@ -1236,7 +1236,7 @@ void toggleAutoVehicleLock(AppState& app, bool fuel, bool enabled, bool electric
         app.mpDetail = mp.detail;
         if (fuel ? mp.blocksFuelWrite() : mp.blocksWrite()) {
             state = false;
-            status = "当前车辆锁定被联机保护拦截：" + mp.detail;
+            status = "The current vehicle lock is intercepted by online protection:" + mp.detail;
             logLine(status);
             return;
         }
@@ -1252,7 +1252,7 @@ void toggleAutoVehicleLock(AppState& app, bool fuel, bool enabled, bool electric
     if (!other) {
         if (!app.vehicleLocker->bind(&app.mem, app.pid, &error)) {
             state = false;
-            status = "自动定位失败：" + error;
+            status = "Automatic positioning failed:" + error;
             logLine(status);
             return;
         }
@@ -1264,10 +1264,10 @@ void toggleAutoVehicleLock(AppState& app, bool fuel, bool enabled, bool electric
     if (fuel && ok) {
         app.autoFuelLock = !electric;
         app.autoElectricLock = electric;
-        if (electric) app.fuelStatus = "无限油量已关闭（已切换到无限电量）。";
-        else app.electricStatus = "无限电量已关闭（已切换到无限油量）。";
+        if (electric) app.fuelStatus = "Unlimited fuel is turned off (switched to unlimited power).";
+        else app.electricStatus = "Unlimited power is turned off (switched to unlimited fuel).";
     }
-    status = ok ? app.vehicleLocker->status() : ("自动定位安全校验未通过：" + error);
+    status = ok ? app.vehicleLocker->status() : ("Automatic positioning security check failed:" + error);
     logLine(status);
 }
 
@@ -1302,9 +1302,9 @@ EngineTuner::Guard engineGuardFor(DWORD pid) {
 
 std::string multiplayerSummary() {
     if (!isConvoyCheckEnabled()) {
-        return "联机保护：TruckersMP 仅放行自动无限油量／电量（联运检测已关闭）。";
+        return "Online protection: TruckersMP only releases automatic unlimited fuel/power (intermodal detection is turned off).";
     }
-    return "联机保护：TruckersMP 仅放行自动无限油量／电量；官方 Convoy 与无法确认的状态拒绝写入。";
+    return "online protection: TruckersMP only releases automatic unlimited fuel/power; official Convoy and unconfirmed status refuse to write.";
 }
 
 }  // namespace
@@ -1326,7 +1326,7 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
         app.engineStateText = tuner.exportState();
-        app.engineStatus = ok ? "已恢复原厂动力" : ("已关闭动力调节（" + error + "）");
+        app.engineStatus = ok ? "has restored its original power" : ("Power adjustment is turned off (" + error + "）");
         saveSettings(app);
         logLine(app.engineStatus);
         return;
@@ -1335,7 +1335,7 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
     if (!ensureAttached(app)) {
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
-        app.engineStatus = "还没有附加到游戏进程";
+        app.engineStatus = "has not been attached to the game process yet";
         return;
     }
     // 用户操作前用最新状态复核联机（不依赖缓存）
@@ -1345,7 +1345,7 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
     if (mp.blocksWrite()) {
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
-        app.engineStatus = "已拒绝修改发动机数据：" + mp.detail;
+        app.engineStatus = "has refused to modify the engine data:" + mp.detail;
         logLine(app.engineStatus);
         return;
     }
@@ -1361,9 +1361,9 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
     const bool ok = tuner.apply(kEngineScales[index], raiseLimit, &error);    app.enginePowerOption = ok ? index : 0;
     app.engineRaiseLimit = ok ? raiseLimit : false;
     app.engineStateText = tuner.exportState();
-    app.engineStatus = ok ? tuner.status() : ("动力调节失败：" + error);
+    app.engineStatus = ok ? tuner.status() : ("Power adjustment failed:" + error);
     if (ok && mp.kind == MultiplayerKind::Unknown) {
-        app.engineStatus += "；注意：无法确认是否在官方 Convoy 中";
+        app.engineStatus += "; Note: Unable to confirm whether it is in the official Convoy";
     }
     saveSettings(app);
     logLine(app.engineStatus);
@@ -1372,16 +1372,16 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
 void detectConsoleKey(AppState& app) {
     std::vector<SaveSlot> slots = app.slots.empty() ? listSlots() : app.slots;
     if (slots.empty()) {
-        app.consoleNote = fmt("没有找到%s的 profile，无法自动识别按键", selectedGameDescriptor().shortName);
+        app.consoleNote = fmt("The profile of %s was not found and the keys could not be automatically recognized.\nThere is no `mix console` binding in", selectedGameDescriptor().shortName);
         return;
     }
     int vk = consoleKeyFromControls(slots.front().profileDir + L"\\controls.sii");
     if (!vk) {
-        app.consoleNote = "controls.sii 里没有 `mix console` 绑定，沿用默认的 ~` 键";
+        app.consoleNote = "controls.sii, so the default ~` key is used.";
         return;
     }
     app.consoleKey = vk;
-    app.consoleNote = fmt("已识别控制台按键：0x%02X", vk);
+    app.consoleNote = fmt("Console key recognized: 0x%02X", vk);
     logLine(app.consoleNote);
     saveSettings(app);
 }
@@ -1391,7 +1391,7 @@ void checkConsoleConfig(AppState& app) {
     std::wstring runningExe;
     if (findProcess(selectedProcessName(), &runningPid, &runningExe)) {
         app.consoleNote =
-            "请先完全退出游戏：游戏退出时会重写 config.cfg，运行中修改会被覆盖（未做任何改动）。";
+            "Please exit the game completely first: config.cfg will be rewritten when the game exits, and modifications during operation will be overwritten (without any changes).";
         logLine(app.consoleNote);
         return;
     }
@@ -1406,7 +1406,7 @@ void checkConsoleConfig(AppState& app) {
     rewriteConfigKey(&text, "g_developer", "1", &changed);
     any |= changed;
     if (!any) {
-        app.consoleNote = "config.cfg 检查：g_console=1、g_developer=1，控制台可用。";
+        app.consoleNote = "config.cfg check: g_console=1, g_developer=1, console is available.";
         logLine(app.consoleNote);
         return;
     }
@@ -1416,7 +1416,7 @@ void checkConsoleConfig(AppState& app) {
         logLine(app.consoleNote);
         return;
     }
-    app.consoleNote = "已写入 config.cfg（原文件备份为 config.cfg.trainer.bak），重启游戏后生效。";
+    app.consoleNote = "has been written into config.cfg (the original file backup is config.cfg.trainer.bak), and it will take effect after restarting the game.";
     logLine(app.consoleNote);
     refreshFlyMode(app);
 }
@@ -1427,8 +1427,8 @@ void checkConsoleConfig(AppState& app) {
 namespace {
 
 std::string keyLabel(int vk) {
-    if (vk >= '0' && vk <= '9') return fmt("数字键 %c", (char)vk);
-    if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9) return fmt("小键盘 %c", (char)('0' + (vk - VK_NUMPAD0)));
+    if (vk >= '0' && vk <= '9') return fmt("numeric key %c", (char)vk);
+    if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9) return fmt("small keyboard %c", (char)('0' + (vk - VK_NUMPAD0)));
     for (const auto& option : consoleKeyOptions()) {
         if (option.vk == vk) return option.label;
     }
@@ -1450,15 +1450,15 @@ void refreshFlyMode(AppState& app) {
     app.flyDeveloper = readConfigKey(text, "g_developer", &value) ? ::atoi(value.c_str()) : -1;
     app.flyConsole = readConfigKey(text, "g_console", &value) ? ::atoi(value.c_str()) : -1;
     const bool hasSpeed = readConfigKey(text, "g_flyspeed", &value);
-    app.flySpeedSaved = hasSpeed ? value : std::string("(未设置)");
+    app.flySpeedSaved = hasSpeed ? value : std::string("(not set)\nThere is no g_flyspeed in");
     if (!hasSpeed) {
-        app.flyNote = "config.cfg 里没有 g_flyspeed，点「写入飞行模式设置」会补上。";
+        app.flyNote = "config.cfg. Click \"Write Flight Mode Settings\" to fill it in.";
     } else if (app.flyDeveloper == 1 && app.flyConsole == 1) {
-        app.flyNote = fmt("config.cfg 已就绪：g_developer=1、g_console=1、g_flyspeed=%s。",
+        app.flyNote = fmt("config.cfg is ready: g_developer=1, g_console=1, g_flyspeed=%s.",
                           app.flySpeedSaved.c_str());
     } else {
         app.flyNote = fmt("config.cfg：g_developer=%d、g_console=%d、g_flyspeed=%s；"
-                          "需要开启后才能用自由相机。",
+                          "needs to be turned on before you can use the free camera.",
                           app.flyDeveloper, app.flyConsole, app.flySpeedSaved.c_str());
     }
     if (hasSpeed) {
@@ -1469,17 +1469,17 @@ void refreshFlyMode(AppState& app) {
 void detectCameraKeys(AppState& app) {
     std::vector<SaveSlot> slots = app.slots.empty() ? listSlots() : app.slots;
     if (slots.empty()) {
-        app.flyNote = fmt("没有找到%s的 profile，无法识别相机按键", selectedGameDescriptor().shortName);
+        app.flyNote = fmt("The profile of %s was not found and the camera button could not be recognized.\nThe mix cam* binding was not found in", selectedGameDescriptor().shortName);
         return;
     }
     CameraBindings bindings;
     if (!cameraKeyBindings(slots.front().profileDir + L"\\controls.sii", &bindings)) {
-        app.flyNote = "controls.sii 里没有找到 mix cam* 绑定（沿用默认：数字键 0 开关，小键盘 8/5/4/6/9/3）";
+        app.flyNote = "controls.sii (default is used: numeric key 0 switch, small keyboard 8/5/4/6/9/3)";
         return;
     }
     app.camera = bindings;
     app.cameraLoaded = true;
-    app.flyNote = fmt("已识别相机按键：开关 %s、前后 %s/%s、左右 %s/%s、上下 %s/%s",
+    app.flyNote = fmt("Recognized camera buttons: switch %s, front and rear %s/%s, left and right %s/%s, up and down %s/%s",
                       keyLabel(bindings.toggle).c_str(), keyLabel(bindings.forward).c_str(),
                       keyLabel(bindings.back).c_str(), keyLabel(bindings.left).c_str(),
                       keyLabel(bindings.right).c_str(), keyLabel(bindings.up).c_str(),
@@ -1491,7 +1491,7 @@ void enableFlyMode(AppState& app) {
     DWORD runningPid = 0;
     std::wstring runningExe;
     if (findProcess(selectedProcessName(), &runningPid, &runningExe)) {
-        app.flyNote = "请先完全退出游戏：游戏退出时会重写 config.cfg，运行中修改会被覆盖（未做任何改动）。";
+        app.flyNote = "Please exit the game completely first: config.cfg will be rewritten when the game exits, and modifications during operation will be overwritten (without any changes).";
         logLine(app.flyNote);
         return;
     }
@@ -1509,7 +1509,7 @@ void enableFlyMode(AppState& app) {
     rewriteConfigKey(&text, "g_flyspeed", speed, &changed);
     any |= changed;
     if (!any) {
-        app.flyNote = "config.cfg 已经满足飞行模式要求，无需修改。";
+        app.flyNote = "config.cfg already meets the flight mode requirements and does not need to be modified.";
         refreshFlyMode(app);
         return;
     }
@@ -1519,9 +1519,9 @@ void enableFlyMode(AppState& app) {
         logLine(app.flyNote);
         return;
     }
-    app.flyNote = fmt("已写入 config.cfg（备份 %s）。重启游戏后进驾驶界面：按 %s 开关自由相机。",
+    app.flyNote = fmt("has been written to config.cfg (backup %s). Restart the game and enter the driving interface: press %s to switch the free camera on and off.",
                       W2U(backup).c_str(),
-                      app.cameraLoaded ? keyLabel(app.camera.toggle).c_str() : "数字键 0");
+                      app.cameraLoaded ? keyLabel(app.camera.toggle).c_str() : "numeric key 0");
     logLine(app.flyNote);
     refreshFlyMode(app);
 }
@@ -1536,20 +1536,20 @@ void toggleFreeCamera(AppState& app) {
     const std::string gate = multiplayerGateForSafeFeature(app);
     if (!gate.empty()) {
         app.flyNote = gate;
-        logLine("自由相机被拦截：" + gate);
+        logLine("free camera intercepted:" + gate);
         return;
     }
     DWORD pid = app.pid;
     if (!pid) {
         std::wstring exe;
         if (!findProcess(selectedProcessName(), &pid, &exe)) {
-            app.flyNote = fmt("没有找到 %s，请先启动游戏。", W2U(selectedProcessName()).c_str());
+            app.flyNote = fmt("%s not found, please start the game first.", W2U(selectedProcessName()).c_str());
             return;
         }
     }
     const int vk = app.cameraLoaded && app.camera.toggle ? app.camera.toggle : '0';
     const SendResult result = sendKeyTap(vk, pid);
-    app.flyNote = result.message + (result.ok ? "（自由相机开关）" : "");
+    app.flyNote = result.message + (result.ok ? "(free camera switch)" : "");
     logLine(app.flyNote);
 }
 
@@ -1567,7 +1567,7 @@ void selectSaveProfile(AppState& app,int index) {
     app.selectedSaveProfile=index;
     clearSaveSlotSelection(app);
     app.showCopyDialog=false;app.copyRequest={};
-    app.saveNote="已切换到档案「"+app.saveProfiles[index].name+"」。请选择该档案的存档。";
+    app.saveNote="has switched to the file \""+app.saveProfiles[index].name+"\". Please select an archive for this file.";
 }
 
 void selectSlot(AppState& app,int index);
@@ -1593,10 +1593,10 @@ void refreshSaves(AppState& app) {
         if (s.format == "scs") ++scs;
         else if (s.format == "text") ++text;
     }
-    app.saveNote = fmt("共找到 %d 个档案、%d 个存档槽（%d 个加密、%d 个明文）。先选档案，再选存档。",
+    app.saveNote = fmt("Found a total of %d files and %d archive slots (%d encrypted, %d plaintext). Select the file first, then the archive.",
                        (int)app.saveProfiles.size(),(int)app.slots.size(), scs, text);
     if(selection.slot>=0) selectSlot(app,selection.slot);
-    logLine(fmt("存档列表已刷新，共 %d 个存档槽", (int)app.slots.size()));
+    logLine(fmt("archive list has been refreshed, with a total of %d archive slots", (int)app.slots.size()));
 }
 
 void selectSlot(AppState& app, int index) {
@@ -1609,8 +1609,8 @@ void selectSlot(AppState& app, int index) {
     if (slot.format != "text") {
         app.saveMoney[0] = 0;
         app.saveXp[0] = 0;
-        app.saveNote = fmt("%s 是 %s 格式。加密/二进制存档本工具不写；想改钱请到「实时改钱」"
-                           "改内存，然后让游戏自动存档。",
+        app.saveNote = fmt("%s is the %s format. This tool does not write encrypted/binary archives; if you want to change the money, please go to \"Real-time Money Change\""
+                           "Change the memory and let the game save automatically.",
                            slot.label.c_str(), slot.formatText.c_str());
         return;
     }
@@ -1622,12 +1622,12 @@ void selectSlot(AppState& app, int index) {
         if (values.hasExperience) {
             ::strncpy_s(app.saveXp, formatInt(values.experience).c_str(), _TRUNCATE);
         }
-        app.saveNote = fmt("%s：明文存档，读到 现金=%s、经验=%s。改完点「写入明文存档」。",
+        app.saveNote = fmt("%s: Clear text archive, read cash=%s, experience=%s. After changing, click \"Write to clear text archive\".",
                            slot.label.c_str(),
-                           values.hasMoney ? formatInt(values.money).c_str() : "无",
-                           values.hasExperience ? formatInt(values.experience).c_str() : "无");
+                           values.hasMoney ? formatInt(values.money).c_str() : "None",
+                           values.hasExperience ? formatInt(values.experience).c_str() : "None");
     } else {
-        app.saveNote = fmt("%s：读取数值失败（%s）", slot.label.c_str(), err.c_str());
+        app.saveNote = fmt("%s: Failed to read value (%s)", slot.label.c_str(), err.c_str());
     }
 }
 
@@ -1653,11 +1653,11 @@ void consumePendingCopy(AppState& app) {
         refreshSaves(app);
         for (int i = 0; i < (int)app.slots.size(); ++i)
             if (::_wcsicmp(app.slots[i].slotDir.c_str(), result.slotDir.c_str()) == 0) { selectSlot(app, i); break; }
-        app.saveNote = std::string(fleet ? "车队已扩充并另存为「" : trailer ? "挂车已更换并另存为「" : home ? "Home 配件已修改并另存为「" : truck ? "卡车已导入新存档「" : "已复制为「") + result.displayName + "」，新槽位：" + W2U(result.slotName) +
-            "。启动游戏后在同一档案的载入列表中查看；云存档请等待 Steam 同步完成。";
-        if(fleet) app.saveNote += " 请在游戏中检查新增司机的工作状态和收益结算。";
+        app.saveNote = std::string(fleet ? "fleet has been expanded and saved as \"" : trailer ? "trailer has been replaced and saved as \"" : home ? "Home accessories have been modified and saved as \"" : truck ? "truck has been imported into the new archive \"" : "has been copied as \"") + result.displayName + "\", new slot:" + W2U(result.slotName) +
+            ". After launching the game, check the loading list of the same file; for cloud saves, please wait for Steam synchronization to complete.";
+        if(fleet) app.saveNote += " Please check the working status and income settlement of the newly added driver in the game.";
         if(!result.note.empty())app.saveNote+=" "+result.note;
-    } else app.saveNote = std::string(fleet ? "车队扩充失败：" : trailer ? "更换挂车失败：" : home ? "Home 配件修改失败：" : truck ? "车辆导入失败：" : "复制失败：") + result.error;
+    } else app.saveNote = std::string(fleet ? "Fleet expansion failed:" : trailer ? "Failed to replace trailer:" : home ? "Home accessory modification failed:" : truck ? "Vehicle import failed:" : "Copy failed:") + result.error;
     logLine(app.saveNote);
 }
 
@@ -1675,16 +1675,16 @@ void consumePendingSplit(AppState& app) {
         if (!names.empty()) names += "、";
         names += "「" + profile.name + "」";
     }
-    if (result.ok) app.saveNote = "已生成独立本地档案：" + names +
-        "。启动游戏后选择对应档案，检查模组管理器，再载入保留的存档。";
-    else app.saveNote = "拆分未全部完成：" + result.error +
-        (names.empty() ? "。未生成新档案。" : "。已生成并保留：" + names + "；其余项目请更换名称后重试。");
+    if (result.ok) app.saveNote = "An independent local file has been generated:" + names +
+        ". After launching the game, select the corresponding file, check the Mod Manager, and then load the saved save.";
+    else app.saveNote = "split is not fully completed:" + result.error +
+        (names.empty() ? ". No new file generated." : ". Generated and retained:" + names + "; Please change the names of other items and try again.");
     logLine(app.saveNote);
 }
 
 void openProfileSplit(AppState& app) {
     if (app.busy || app.selectedSlot < 0 || app.selectedSlot >= (int)app.slots.size()) {
-        app.saveNote = "请先选中 TMP、ProMods 或联运所在档案的一个存档"; return;
+        app.saveNote = "Please select an archive of the TMP, ProMods or intermodal file first"; return;
     }
     std::string error;
     if (copyBlockedByRunningGame(selectedGame(), &error)) { app.saveNote = error; return; }
@@ -1704,7 +1704,7 @@ void startProfileSplit(AppState& app) {
     joinWorker(app); consumePendingCopy(app); consumePendingSplit(app);
     ProfileSplitRequest request; request.game = app.splitGame;
     for (const auto& row : app.splitRows) if (row.selected) request.items.push_back({row.source, row.name});
-    app.busy = true; app.cancel = false; app.saveNote = "正在准备独立档案并校验完整存档……";
+    app.busy = true; app.cancel = false; app.saveNote = "is preparing an independent archive and verifying the complete archive...";
     app.worker = std::thread([&app, request] {
         ProfileSplitResult result;
         try { result = splitSelectedProfiles(request, [&app] { return app.cancel.load(); }); }
@@ -1716,22 +1716,22 @@ void startProfileSplit(AppState& app) {
 }
 
 void renderProfileSplitDialog(AppState& app) {
-    if (app.showProfileSplit) { ::ImGui::OpenPopup("拆分为独立档案##split"); app.showProfileSplit = false; }
+    if (app.showProfileSplit) { ::ImGui::OpenPopup("split into independent file ##split"); app.showProfileSplit = false; }
     ::ImGui::SetNextWindowSize(ImVec2(780, 0), ImGuiCond_Appearing);
-    if (!::ImGui::BeginPopupModal("拆分为独立档案##split", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+    if (!::ImGui::BeginPopupModal("split into independent file ##split", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
     if (app.splitRows.empty() || app.splitGame != selectedGame()) {
         ::ImGui::CloseCurrentPopup(); ::ImGui::EndPopup(); return;
     }
-    ::ImGui::Text("%s / 源档案：%s", gameDescriptor(app.splitGame).shortName,
+    ::ImGui::Text("%s / Source file: %s", gameDescriptor(app.splitGame).shortName,
                   W2U(app.splitRows.front().source.profileName).c_str());
-    ::ImGui::TextWrapped("勾选需要分离的存档，每个存档填写一个不同的新档案名（例如 TMP、ProMods、联运）。最多选择 16 个。");
-    ::ImGui::TextWrapped("每个新档案仅保留选中的存档，继承当前设置、控制器和模组配置。历史模组顺序无法自动还原；首次载入前请检查模组管理器。");
-    ::ImGui::TextWrapped("生成到本地 profiles；支持加密进度，原档案保留。Steam 云源的本地控制器设置会一起复制。");
+    ::ImGui::TextWrapped("Check the archives that need to be separated, and fill in a different new file name for each archive (such as TMP, ProMods, Intermodal). Select up to 16.");
+    ::ImGui::TextWrapped("Each new archive retains only the selected archive, inheriting current settings, controller and module configurations. Historical module order cannot be automatically restored; please check the module manager before loading for the first time.");
+    ::ImGui::TextWrapped("is generated to local profiles; encryption progress is supported and the original files are retained. Local controller settings from Steam Cloud sources are copied along.");
     ::ImGui::BeginChild("##split-list", ImVec2(0, 270), ImGuiChildFlags_Borders);
     if (::ImGui::BeginTable("##split-rows", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
-        ::ImGui::TableSetupColumn("选择", ImGuiTableColumnFlags_WidthFixed, 45);
-        ::ImGui::TableSetupColumn("槽位", ImGuiTableColumnFlags_WidthFixed, 105);
-        ::ImGui::TableSetupColumn("存档名称"); ::ImGui::TableSetupColumn("新档案名称"); ::ImGui::TableHeadersRow();
+        ::ImGui::TableSetupColumn("Select", ImGuiTableColumnFlags_WidthFixed, 45);
+        ::ImGui::TableSetupColumn("slot", ImGuiTableColumnFlags_WidthFixed, 105);
+        ::ImGui::TableSetupColumn("archive name"); ::ImGui::TableSetupColumn("New file name"); ::ImGui::TableHeadersRow();
         for (int i = 0; i < (int)app.splitRows.size(); ++i) {
             auto& row = app.splitRows[i]; ::ImGui::PushID(i); ::ImGui::TableNextRow();
             ::ImGui::TableSetColumnIndex(0); ::ImGui::Checkbox("##enabled", &row.selected);
@@ -1748,16 +1748,16 @@ void renderProfileSplitDialog(AppState& app) {
     for (const auto& row : app.splitRows) if (row.selected) {
         ++count; std::wstring folder; std::string why;
         if (!profileFolderName(row.name, &folder, &why)) { if (error.empty()) error = why; }
-        else if (!names.insert(folder).second) error = "新档案名称不能重复";
+        else if (!names.insert(folder).second) error = "The new file name cannot be repeated";
     }
-    if (!count || count > 16) error = "请选择 1 至 16 个存档";
-    ::ImGui::Text("将创建 %zu 个独立档案", count);
+    if (!count || count > 16) error = "Please select 1 to 16 archives";
+    ::ImGui::Text("will create %zu independent files\nFiles with the same name as", count);
     if (!error.empty()) ::ImGui::TextWrapped("%s", error.c_str());
-    ::ImGui::TextDisabled("同名档案会拒绝覆盖。若中途失败，结果会列出已生成的档案。");
+    ::ImGui::TextDisabled("will be refused to be overwritten. If it fails halfway, the generated files will be listed as a result.");
     ::ImGui::BeginDisabled(!error.empty() || app.splitUiFixture);
-    if (::ImGui::Button("生成独立档案")) { startProfileSplit(app); ::ImGui::CloseCurrentPopup(); }
+    if (::ImGui::Button("generate independent files")) { startProfileSplit(app); ::ImGui::CloseCurrentPopup(); }
     ::ImGui::EndDisabled(); ::ImGui::SameLine();
-    if (::ImGui::Button("取消")) ::ImGui::CloseCurrentPopup();
+    if (::ImGui::Button("Cancel")) ::ImGui::CloseCurrentPopup();
     ::ImGui::EndPopup();
 }
 
@@ -1769,7 +1769,7 @@ void startSaveCopy(AppState& app) {
     request.displayName = app.copyName;
     app.cancel = false;
     app.busy = true;
-    app.saveNote = "正在复制并校验存档文件……";
+    app.saveNote = "Copying and verifying archive files...";
     app.worker = std::thread([&app, request] {
         SaveCopyResult result;
         try { result = copySlotToNewSave(request, [&app] { return app.cancel.load(); }); }
@@ -1801,15 +1801,15 @@ void consumePendingTransferInspection(AppState& app) {
     if(result.target) {
         app.transferTargetReady=result.ok;
         app.transferTargetInventory=result.ok ? std::move(result.inventory) : TransferInventory{};
-        app.transferNote=!result.ok ? "目标无法使用："+result.error :
-            app.transferTargetInventory.garages.empty() ? "目标没有车辆和司机均为空的车库位置。" :
-            "目标版本和依赖检查通过。请选择车库和新存档名称。";
+        app.transferNote=!result.ok ? "target cannot be used:"+result.error :
+            app.transferTargetInventory.garages.empty() ? "The target has a garage location with both vehicles and drivers empty." :
+            "Target version and dependency check passed. Please select a garage and new save name.";
     } else {
         app.transferSourceInventory=result.ok ? std::move(result.inventory) : TransferInventory{};
-        app.transferNote=!result.ok ? "无法读取源车辆："+result.error :
-            app.transferSourceInventory.trucks.empty() ? "源存档没有可复制的自有卡车。" :
-            app.transferTargets.empty() ? "没有其他目标存档，请先在目标档案创建一个可用存档。" :
-            "源车辆已读取。请选择卡车和目标存档。";
+        app.transferNote=!result.ok ? "Unable to read source vehicle:"+result.error :
+            app.transferSourceInventory.trucks.empty() ? "The source archive has no own trucks to copy." :
+            app.transferTargets.empty() ? "There is no other target archive. Please create an available archive in the target archive first." :
+            "source vehicle has been read. Please select a truck and target archive.";
     }
 }
 
@@ -1820,9 +1820,9 @@ void startTransferInspection(AppState& app,bool target) {
     const uint64_t generation=++app.transferInspectionGeneration;
     app.transferInspectBusy=true; app.cancel=false; app.busy=true;
     app.progressDone=0; app.progressTotal=1;
-    app.progressNote=target ? "读取目标车库并检查兼容性" : "读取源车辆";
-    app.transferNote=target ? "正在自动解密和转换目标存档，并检查版本与依赖……" :
-                             "正在自动解密和转换源存档，请稍候……";
+    app.progressNote=target ? "Read target garage and check compatibility" : "read source vehicle";
+    app.transferNote=target ? "is automatically decrypting and converting the target archive, and checking versions and dependencies..." :
+                             "is automatically decrypting and converting the source archive, please wait...";
     app.worker=std::thread([&app,request,generation,target]{
         PendingTransferInspection result;
         result.game=request.game; result.generation=generation; result.target=target;
@@ -1843,13 +1843,13 @@ void openTruckTransfer(AppState& app) {
         app.saveNote=message;
         app.truckTransferNotice=message;
         app.showTruckTransferNotice=true;
-        logLine("跨存档复制卡车："+message);
+        logLine("Copy truck across archives:"+message);
     };
-    if(app.busy) {explain("当前任务正在处理中，请完成或取消后再复制卡车。");return;}
+    if(app.busy) {explain("The current task is being processed, please complete or cancel before copying the truck.");return;}
     std::string error;
     if(copyBlockedByRunningGame(selectedGame(),&error)){explain(error);return;}
     if(app.selectedSlot<0 || app.selectedSlot>=(int)app.slots.size()) {
-        explain("请先在下方存档列表中选中提供卡车的源存档，再点击「跨存档复制卡车」。");return;
+        explain("Please select the source archive of the truck in the archive list below, and then click \"Copy Truck Across Archives\".");return;
     }
     app.truckTransferRequest={};
     app.truckTransferRequest.game=selectedGame();
@@ -1862,9 +1862,9 @@ void openTruckTransfer(AppState& app) {
     app.transferTruckIndex=0;app.transferTargetIndex=-1;app.transferGarageIndex=0;
     app.transferTargetInventory={};
     app.transferTargetReady=false;
-    ::strncpy_s(app.transferName,"车辆导入副本",_TRUNCATE);
+    ::strncpy_s(app.transferName,"vehicle import copy",_TRUNCATE);
     app.showTruckTransfer=true;
-    logLine("跨存档复制卡车：打开选择窗口并读取源车辆。");
+    logLine("Copy a truck across archives: Open the selection window and read the source vehicle.");
     startTransferInspection(app,false);
 }
 
@@ -1878,8 +1878,8 @@ void startTruckTransfer(AppState& app) {
     request.garageId=app.transferTargetInventory.garages.at(app.transferGarageIndex).id;
     request.displayName=app.transferName;
     app.busy=true;app.cancel=false;
-    app.progressDone=0;app.progressTotal=1;app.progressNote="转换并复制卡车到新存档";
-    app.saveNote="正在校验卡车配件和目标存档，并创建车辆导入副本……";
+    app.progressDone=0;app.progressTotal=1;app.progressNote="Convert and copy truck to new save";
+    app.saveNote="Verifying truck accessories and target archives, and creating a copy of the vehicle import...";
     app.worker=std::thread([&app,request]{
         auto result=transferTruckToNewSave(request,[&app]{return app.cancel.load();});
         {
@@ -1891,39 +1891,39 @@ void startTruckTransfer(AppState& app) {
 }
 
 void renderTruckTransferDialog(AppState& app) {
-    const char* notice="跨存档复制卡车提示##transfer_notice";
+    const char* notice="Cross-save truck copy prompt ##transfer_notice";
     if(app.showTruckTransferNotice) {::ImGui::OpenPopup(notice);app.showTruckTransferNotice=false;}
     ::ImGui::SetNextWindowSize(ImVec2(560,0),ImGuiCond_Appearing);
     if(::ImGui::BeginPopupModal(notice,nullptr,ImGuiWindowFlags_AlwaysAutoResize)) {
         ::ImGui::TextWrapped("%s",app.truckTransferNotice.c_str());
         if(app.truckTransferUiProbe.capture) app.truckTransferUiProbe.noticeVisible=true;
-        if(::ImGui::Button("知道了")) ::ImGui::CloseCurrentPopup();
+        if(::ImGui::Button("Got it")) ::ImGui::CloseCurrentPopup();
         ::ImGui::EndPopup();
     }
-    if(app.showTruckTransfer){::ImGui::OpenPopup("跨存档复制卡车##transfer");app.showTruckTransfer=false;}
+    if(app.showTruckTransfer){::ImGui::OpenPopup("Cross-save copy truck ##transfer");app.showTruckTransfer=false;}
     ::ImGui::SetNextWindowSize(ImVec2(740,0),ImGuiCond_Appearing);
-    if(!::ImGui::BeginPopupModal("跨存档复制卡车##transfer",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) return;
+    if(!::ImGui::BeginPopupModal("Cross-save copy truck ##transfer",nullptr,ImGuiWindowFlags_AlwaysAutoResize)) return;
     if(app.truckTransferRequest.source.slotDir.empty() ||
        app.truckTransferRequest.game!=selectedGame()){
         ::ImGui::CloseCurrentPopup();::ImGui::EndPopup();return;
     }
-    ::ImGui::TextWrapped("源：%s / %s",gameDescriptor(app.truckTransferRequest.game).shortName,
+    ::ImGui::TextWrapped("Source: %s / %s",gameDescriptor(app.truckTransferRequest.game).shortName,
                         app.truckTransferRequest.source.label.c_str());
-    ::ImGui::TextWrapped("自动解密并读取现有存档，无需设置游戏存档格式。复制到目标档案的新存档槽，保留两份原档。需同游戏、同存档版本及兼容的 DLC／模组。");
+    ::ImGui::TextWrapped("automatically decrypts and reads existing archives without setting the game archive format. Copy to the new save slot of the target file, keeping two copies of the original file. Requires the same game, the same save version and compatible DLC/modules.");
     ::ImGui::BeginDisabled(app.busy);
     ::ImGui::SetNextItemWidth(650);
     const auto& trucks=app.transferSourceInventory.trucks;
-    if(::ImGui::BeginCombo("卡车",trucks.empty()?"无车辆":trucks[app.transferTruckIndex].label.c_str())){
+    if(::ImGui::BeginCombo("truck",trucks.empty()?"No vehicle":trucks[app.transferTruckIndex].label.c_str())){
         for(int i=0;i<(int)trucks.size();++i){
             ::ImGui::PushID(i);
-            auto label=trucks[i].label+" / "+trucks[i].id+" / "+std::to_string(trucks[i].accessories)+" 配件";
+            auto label=trucks[i].label+" / "+trucks[i].id+" / "+std::to_string(trucks[i].accessories)+" accessories";
             if(::ImGui::Selectable(label.c_str(),i==app.transferTruckIndex))app.transferTruckIndex=i;
             ::ImGui::PopID();
         }
         ::ImGui::EndCombo();
     }
     ::ImGui::SetNextItemWidth(650);
-    if(::ImGui::BeginCombo("目标存档",app.transferTargetIndex<0?"请选择目标存档":app.transferTargets[app.transferTargetIndex].label.c_str())){
+    if(::ImGui::BeginCombo("target archive",app.transferTargetIndex<0?"Please select the target archive":app.transferTargets[app.transferTargetIndex].label.c_str())){
         for(int i=0;i<(int)app.transferTargets.size();++i){
             ::ImGui::PushID(i);
             if(::ImGui::Selectable(app.transferTargets[i].label.c_str(),i==app.transferTargetIndex)){
@@ -1938,15 +1938,15 @@ void renderTruckTransferDialog(AppState& app) {
     }
     const auto& garages=app.transferTargetInventory.garages;
     ::ImGui::SetNextItemWidth(650);
-    if(::ImGui::BeginCombo("目标车库",garages.empty()?"无可用空位":garages[app.transferGarageIndex].id.c_str())){
+    if(::ImGui::BeginCombo("Target Garage",garages.empty()?"No available space":garages[app.transferGarageIndex].id.c_str())){
         for(int i=0;i<(int)garages.size();++i){
-            const auto label=garages[i].id+"（"+std::to_string(garages[i].freeSlots)+" 个空位）";
+            const auto label=garages[i].id+"（"+std::to_string(garages[i].freeSlots)+" vacancies)";
             if(::ImGui::Selectable(label.c_str(),i==app.transferGarageIndex))app.transferGarageIndex=i;
         }
         ::ImGui::EndCombo();
     }
     ::ImGui::SetNextItemWidth(500);
-    ::ImGui::InputText("新存档名称",app.transferName,sizeof(app.transferName));
+    ::ImGui::InputText("New archive name",app.transferName,sizeof(app.transferName));
     ::ImGui::EndDisabled();
     ::ImGui::TextWrapped("%s",app.transferNote.c_str());
     std::string escaped,error;
@@ -1954,10 +1954,10 @@ void renderTruckTransferDialog(AppState& app) {
     if(!valid)::ImGui::TextWrapped("%s",error.c_str());
     ::ImGui::BeginDisabled(!valid || garages.empty() || trucks.empty() || app.transferTargetIndex<0 ||
                            !app.transferTargetReady || app.transferInspectBusy || app.busy);
-    if(::ImGui::Button("复制卡车并另存为新槽位")){startTruckTransfer(app);::ImGui::CloseCurrentPopup();}
+    if(::ImGui::Button("Duplicate truck and save as new slot")){startTruckTransfer(app);::ImGui::CloseCurrentPopup();}
     ::ImGui::EndDisabled();
     ::ImGui::SameLine();
-    if(::ImGui::Button(app.transferInspectBusy ? "取消读取并关闭" : "关闭")) {
+    if(::ImGui::Button(app.transferInspectBusy ? "Cancel reading and close" : "Close")) {
         if(app.transferInspectBusy) app.cancel=true;
         app.transferInspectBusy=false; app.transferTargetReady=false;
         ++app.transferInspectionGeneration;
@@ -1987,28 +1987,28 @@ void consumePendingHomeInspection(AppState& app) {
     app.homeInventory=result.ok ? std::move(result.inventory) : HomeAccessoryInventory{};
     app.homeTruckIndex=0;
     selectHomeAccessory(app,app.homeInventory.entries.empty() ? -1 : 0);
-    app.homeNote=!result.ok ? "读取配件失败："+result.error :
-        app.homeInventory.entries.empty() ? "此存档没有可读取的自有卡车配件。" :
-        app.homePresetMode==2 ? "选择卡车和目标容量，然后预览永久扩容。" :
-        "选择卡车和已有配件，粘贴新的 /def/... 路径，然后预览。";
+    app.homeNote=!result.ok ? "Failed to read accessories:"+result.error :
+        app.homeInventory.entries.empty() ? "This archive has no own truck accessories to read." :
+        app.homePresetMode==2 ? "Select a truck and target capacity, then preview permanent expansion." :
+        "Select the truck and existing accessories, paste the new /def/... path, and preview.";
 }
 
 void openHomeAccessories(AppState& app,int mode=0) {
     if(app.busy) return;
-    if(selectedGame()!=GameId::Ets2) {app.saveNote="Home 配件代码目前仅支持欧卡2";return;}
+    if(selectedGame()!=GameId::Ets2) {app.saveNote="Home accessory code currently only supports ETS2";return;}
     if(app.selectedSlot<0 || app.selectedSlot>=(int)app.slots.size()) {
-        app.saveNote="请先选择要修改的存档";return;
+        app.saveNote="Please select the archive you want to modify first";return;
     }
     joinWorker(app); consumePendingCopy(app);
     app.homeRequest={}; app.homeRequest.game=selectedGame();
     app.homeRequest.source=app.slots[app.selectedSlot];
     app.homeInventory={}; app.homeTruckIndex=0; selectHomeAccessory(app,-1);
     app.homePresetMode=mode;app.tankCapacity=5000;
-    ::strncpy_s(app.homeName,mode==2?"永久容量扩容副本":"Home 配件副本",_TRUNCATE);
-    app.homeNote="正在自动解密并读取自有卡车配件……";
+    ::strncpy_s(app.homeName,mode==2?"permanent capacity expansion copy":"Home Accessories Copy",_TRUNCATE);
+    app.homeNote="is automatically decrypting and reading its own truck accessories...";
     app.showHomeAccessories=true; app.homeInspectBusy=true;
     app.busy=true; app.cancel=false;
-    app.progressDone=0; app.progressTotal=1; app.progressNote=mode==2?"读取车辆底盘":"读取 Home 配件";
+    app.progressDone=0; app.progressTotal=1; app.progressNote=mode==2?"reads vehicle chassis":"Read Home Accessories";
     const auto request=app.homeRequest;
     const uint64_t generation=++app.homeInspectionGeneration;
     app.worker=std::thread([&app,request,generation]{
@@ -2028,7 +2028,7 @@ bool startHomeAccessoryCopy(AppState& app) {
     std::string error;
     if(copyBlockedByRunningGame(selectedGame(),&error)) {app.homeNote=error;return false;}
     const auto& entry=app.homeInventory.entries[app.homeAccessoryIndex];
-    if(!app.homePresetMode && entry.shared) {app.homeNote="共享配件不可修改，请选择其他配件。";return false;}
+    if(!app.homePresetMode && entry.shared) {app.homeNote="shared accessories cannot be modified, please choose other accessories.";return false;}
     HomeAccessoryRequest request=app.homeRequest;
     request.truckId=entry.truckId; request.unitId=entry.unitId; request.originalPath=entry.dataPath;
     request.newPath=app.homePath; request.displayName=app.homeName;
@@ -2036,8 +2036,8 @@ bool startHomeAccessoryCopy(AppState& app) {
     request.tankCapacity=app.homePresetMode==2?app.tankCapacity:0;
     joinWorker(app); consumePendingCopy(app);
     app.busy=true; app.cancel=false;
-    app.progressDone=0;app.progressTotal=1;app.progressNote=request.tankCapacity?"生成容量 Mod 与存档副本":request.scaniaTvPreset ? "安装三屏电视预设并另存副本" : "生成 Home 配件存档副本";
-    app.saveNote=request.tankCapacity ? "正在生成永久油箱 / 电池扩容 Mod 与存档副本……" : request.scaniaTvPreset ? "正在校验内置模型资源和挂点，并生成三屏电视存档副本……" : "正在校验配件并生成新存档，原存档保留……";
+    app.progressDone=0;app.progressTotal=1;app.progressNote=request.tankCapacity?"Generate Capacity Mod and Archive Copy":request.scaniaTvPreset ? "Install three-screen TV presets and save a copy" : "Generate archive copy of Home accessories";
+    app.saveNote=request.tankCapacity ? "Generating permanent tank/battery expansion mod and archive copy..." : request.scaniaTvPreset ? "is verifying built-in model resources and hangpoints, and generating a three-screen TV archive copy..." : "is verifying accessories and generating a new archive. The original archive is retained...";
     app.worker=std::thread([&app,request]{
         auto result=homeAccessoryToNewSave(request,[&app]{return app.cancel.load();});
         {
@@ -2051,8 +2051,8 @@ bool startHomeAccessoryCopy(AppState& app) {
 }
 
 void renderFuelTankControls(AppState& app) {
-    ::ImGui::TextWrapped("为单辆卡车新增独立扩容底盘：柴油油箱按升、电池按 kWh。支持内置欧卡 1.61 原厂柴油底盘及斯堪尼亚 S 2024 电动 4×2；修改过底盘定义的 Mod 不在支持范围内。");
-    ::ImGui::TextWrapped("Mod 将安装到游戏文档的 mod 文件夹。生成后先在游戏 Mod 管理器启用它，再载入副本；保存、重启后容量仍生效，使用副本期间需要保持 Mod 启用。");
+    ::ImGui::TextWrapped("adds an independent expansion chassis for a single truck: diesel fuel tank by liter, battery by kWh. Supports built-in Oka 1.61 original diesel chassis and Scania S 2024 electric 4×2; Mods that modify the chassis definition are not supported.\nThe");
+    ::ImGui::TextWrapped("Mod will be installed into the mod folder of the game's documentation. After generating, enable it in the game Mod Manager first, and then load the copy; the capacity will still take effect after saving and restarting, and you need to keep the Mod enabled while using the copy.");
     ::ImGui::Separator();
     std::vector<int> chassis;
     for(int i=0;i<(int)app.homeInventory.entries.size();++i) {
@@ -2071,30 +2071,30 @@ void renderFuelTankControls(AppState& app) {
     ::ImGui::BeginDisabled(app.busy||app.homeInspectBusy);
     const auto* entry=app.homeAccessoryIndex>=0&&app.homeAccessoryIndex<(int)app.homeInventory.entries.size()?
         &app.homeInventory.entries[app.homeAccessoryIndex]:nullptr;
-    const auto selectedLabel=entry?entry->truckLabel+" / "+entry->truckId:"没有可读取的底盘";
+    const auto selectedLabel=entry?entry->truckLabel+" / "+entry->truckId:"No readable chassis";
     ::ImGui::SetNextItemWidth(-100);
-    if(::ImGui::BeginCombo("选择卡车",selectedLabel.c_str())) {
+    if(::ImGui::BeginCombo("Select truck",selectedLabel.c_str())) {
         for(int index:chassis) {
             const auto& item=app.homeInventory.entries[index];
-            const auto label=item.truckLabel+" / "+item.truckId+(item.shared?" [共享，不可修改]":"");
+            const auto label=item.truckLabel+" / "+item.truckId+(item.shared?" [Shared, cannot be modified]":"");
             if(::ImGui::Selectable(label.c_str(),index==app.homeAccessoryIndex))selectHomeAccessory(app,index);
         }
         ::ImGui::EndCombo();
     }
     entry=app.homeAccessoryIndex>=0&&app.homeAccessoryIndex<(int)app.homeInventory.entries.size()?
         &app.homeInventory.entries[app.homeAccessoryIndex]:nullptr;
-    if(entry)::ImGui::TextWrapped("当前底盘：%s",entry->dataPath.c_str());
+    if(entry)::ImGui::TextWrapped("Current chassis: %s",entry->dataPath.c_str());
     const bool electric=entry&&fuelTankIsElectric(entry->dataPath);
-    const char* unit=electric?"kWh":"升";
+    const char* unit=electric?"kWh":"Liter";
     ::ImGui::SetNextItemWidth(200);
-    if(::ImGui::InputInt(electric?"目标电池容量（kWh）":"目标油箱容量（升）",&app.tankCapacity,100,500))app.homePreview=false;
-    ::ImGui::TextDisabled("支持 100–10000 %s，目标必须大于原厂容量。",unit);
-    ::ImGui::TextDisabled("保留存档的%s比例，实际%s按新容量计算。",electric?"电量":"油量",electric?"电量":"升数");
+    if(::ImGui::InputInt(electric?"target battery capacity (kWh)":"target fuel tank capacity (liters)",&app.tankCapacity,100,500))app.homePreview=false;
+    ::ImGui::TextDisabled("supports 100–10000 %s, the target must be larger than the original capacity.",unit);
+    ::ImGui::TextDisabled("retains the archived %s ratio, and the actual %s is calculated based on the new capacity.",electric?"power":"fuel level",electric?"power":"Liters");
     ::ImGui::SetNextItemWidth(-100);
-    if(::ImGui::InputText("新存档名称",app.homeName,sizeof(app.homeName)))app.homePreview=false;
+    if(::ImGui::InputText("New archive name",app.homeName,sizeof(app.homeName)))app.homePreview=false;
     FuelTankMod mod;std::string error,escaped;
     bool valid=entry&&!entry->shared&&buildFuelTankMod(entry->dataPath,app.tankCapacity,&mod,&error);
-    if(entry&&entry->shared)error="底盘配件被多辆车共享，不能单独修改。";
+    if(entry&&entry->shared)error="chassis accessories are shared by multiple vehicles and cannot be modified individually.";
     if(valid) {
         std::vector<std::string> engines;
         for(const auto& item:app.homeInventory.entries)if(item.truckId==entry->truckId&&item.dataPath.find("/engine/")!=std::string::npos)
@@ -2102,22 +2102,22 @@ void renderFuelTankControls(AppState& app) {
         valid=validateFuelTankPowertrain(mod,engines,&error);
     }
     if(valid)valid=siiEscapeName(app.homeName,&escaped,&error);
-    if(valid)::ImGui::Text("%s：原厂 %d %s → 新容量 %d %s",electric?"电池":"油箱",mod.originalCapacity,unit,mod.capacity,unit);
+    if(valid)::ImGui::Text("%s: original %d %s → new capacity %d %s",electric?"battery":"fuel tank",mod.originalCapacity,unit,mod.capacity,unit);
     if(!error.empty())::ImGui::TextWrapped("%s",error.c_str());
     ::ImGui::BeginDisabled(!valid);
-    if(::ImGui::Button("预览永久扩容"))app.homePreview=true;
+    if(::ImGui::Button("preview permanent expansion"))app.homePreview=true;
     ::ImGui::EndDisabled();
     if(app.homePreview&&valid) {
         app.homePreviewVisible=true;
-        ::ImGui::TextWrapped("卡车：%s / %s\n原厂 %d → %d %s\nMod：%s\n新底盘：%s\n原存档与其他卡车保留；请先退出游戏再生成。",
+        ::ImGui::TextWrapped("Truck: %s / %s\n Original %d → %d %s\nMod: %s\n New Chassis: %s\n The original save is retained with other trucks; please exit the game first and then generate again.",
             entry->truckLabel.c_str(),entry->truckId.c_str(),mod.originalCapacity,mod.capacity,unit,mod.displayName.c_str(),mod.chassisPath.c_str());
     }
     app.homeApplyEnabled=valid&&app.homePreview&&!app.busy;
     ::ImGui::BeginDisabled(!valid||!app.homePreview);
-    if(ui::primaryButton(electric?"生成 Mod 与电池存档副本":"生成 Mod 与油箱存档副本"))if(startHomeAccessoryCopy(app))::ImGui::CloseCurrentPopup();
+    if(ui::primaryButton(electric?"Generate Mod and Battery Archive Copy":"Generate Mod and Tank Archive Copy"))if(startHomeAccessoryCopy(app))::ImGui::CloseCurrentPopup();
     ::ImGui::EndDisabled();::ImGui::EndDisabled();
     ::ImGui::Spacing();::ImGui::TextWrapped("%s",app.homeNote.c_str());
-    if(::ImGui::Button(app.homeInspectBusy?"取消读取并关闭":"关闭")) {
+    if(::ImGui::Button(app.homeInspectBusy?"Cancel reading and close":"Close")) {
         if(app.homeInspectBusy)app.cancel=true;
         app.homeInspectBusy=false;app.homePreview=false;++app.homeInspectionGeneration;::ImGui::CloseCurrentPopup();
     }
@@ -2125,7 +2125,7 @@ void renderFuelTankControls(AppState& app) {
 
 void renderHomeAccessoriesDialog(AppState& app) {
     app.homeDialogVisible=false; app.homePreviewVisible=false; app.homeApplyEnabled=false;
-    const char* title="车辆配件与容量扩容##home_accessories";
+    const char* title="Vehicle accessories and capacity expansion ##home_accessories";
     if(app.showHomeAccessories){::ImGui::OpenPopup(title);app.showHomeAccessories=false;}
     ::ImGui::SetNextWindowSize(ImVec2(900,(std::min)(740.f,::ImGui::GetIO().DisplaySize.y-40.f)),ImGuiCond_Appearing);
     if(!::ImGui::BeginPopupModal(title,nullptr,ImGuiWindowFlags_None)) return;
@@ -2133,22 +2133,22 @@ void renderHomeAccessoriesDialog(AppState& app) {
         ::ImGui::CloseCurrentPopup();::ImGui::EndPopup();return;
     }
     app.homeDialogVisible=true;
-    ui::textf(ui::muted,"源档案：%s / 存档：%s",W2U(app.homeRequest.source.profileName).c_str(),
+    ui::textf(ui::muted,"Source file: %s / Archive: %s",W2U(app.homeRequest.source.profileName).c_str(),
               app.homeRequest.source.displayName.c_str());
     if(app.homePresetMode==2){renderFuelTankControls(app);::ImGui::EndPopup();return;}
-    ::ImGui::TextWrapped("选择路径替换或内置 Home 预设，在同一档案生成命名副本。生成副本前请退出欧卡2。");
-    const char* modes[]={"手动替换 /def/... 配件路径","三屏电视 + 补盲镜 + 行车信息（斯堪尼亚 S 2016）"};
+    ::ImGui::TextWrapped("Select path replacement or built-in Home preset to generate a named copy in the same file. Please exit Oka 2 before generating a copy.");
+    const char* modes[]={"Manually replace /def/... accessory path","three-screen TV + blind mirror + driving information (Scania S 2016)"};
     ::ImGui::BeginDisabled(app.busy);
     ::ImGui::SetNextItemWidth(-100);
-    if(::ImGui::Combo("修改方式",&app.homePresetMode,modes,2)) {
+    if(::ImGui::Combo("modification method",&app.homePresetMode,modes,2)) {
         app.homePreview=false;
-        ::strncpy_s(app.homeName,app.homePresetMode ? "三屏电视副本" : "Home 配件副本",_TRUNCATE);
+        ::strncpy_s(app.homeName,app.homePresetMode ? "triple screen TV copy" : "Home Accessories Copy",_TRUNCATE);
     }
     ::ImGui::EndDisabled();
     if(app.homePresetMode) {
-        ::ImGui::TextWrapped("此实验预设来自你提供的 MoRan 压缩包。需要 Cabin Accessories DLC；旧模型在当前游戏及 TMP 中的显示效果尚未验证。");
-        ::ImGui::TextWrapped("安装 14 个模型资源文件；使用 slot_1，自动补齐安装底座。已有不同资源或占用的挂点会被保留并提示冲突。");
-    } else ::ImGui::TextWrapped("仅检查路径格式，未验证资源存在或 TruckersMP 同步。请使用与游戏版本和车型匹配的配件路径。");
+        ::ImGui::TextWrapped("This experimental preset comes from the MoRan zip package you provided. Requires Cabin Accessories DLC; older models have not yet been verified for display in current game and TMP.");
+        ::ImGui::TextWrapped("installs 14 model resource files; use slot_1 to automatically complete the installation base. Mount points that already have different resources or occupies different resources will be retained and a conflict will be prompted.");
+    } else ::ImGui::TextWrapped("only checks path format, does not verify resource existence or TruckersMP synchronization. Please use the accessory path that matches the game version and car model.");
     ::ImGui::Separator();
     std::vector<const HomeAccessoryEntry*> trucks;
     std::set<std::string> truckIds;
@@ -2159,7 +2159,7 @@ void renderHomeAccessoriesDialog(AppState& app) {
         app.homeTruckIndex=std::clamp(app.homeTruckIndex,0,(int)trucks.size()-1);
         const auto* truck=trucks[app.homeTruckIndex];
         ::ImGui::SetNextItemWidth(-100);
-        if(::ImGui::BeginCombo("卡车",truck->truckLabel.c_str())) {
+        if(::ImGui::BeginCombo("truck",truck->truckLabel.c_str())) {
             for(int i=0;i<(int)trucks.size();++i) {
                 ::ImGui::PushID(i);
                 if(::ImGui::Selectable(trucks[i]->truckLabel.c_str(),app.homeTruckIndex==i)) {
@@ -2172,18 +2172,18 @@ void renderHomeAccessoriesDialog(AppState& app) {
             ::ImGui::EndCombo();
         }
         const std::string truckId=trucks[app.homeTruckIndex]->truckId;
-        std::string accessoryLabel="请选择配件";
+        std::string accessoryLabel="Please select accessories";
         if(app.homeAccessoryIndex>=0 && app.homeAccessoryIndex<(int)app.homeInventory.entries.size()) {
             const auto& entry=app.homeInventory.entries[app.homeAccessoryIndex];
-            accessoryLabel=entry.dataPath+(entry.shared ? " [共享，不可修改]" : "");
+            accessoryLabel=entry.dataPath+(entry.shared ? " [Shared, cannot be modified]" : "");
         }
         ::ImGui::SetNextItemWidth(-100);
-        if(!app.homePresetMode && ::ImGui::BeginCombo("已有配件",accessoryLabel.c_str())) {
+        if(!app.homePresetMode && ::ImGui::BeginCombo("already has accessories",accessoryLabel.c_str())) {
             for(int i=0;i<(int)app.homeInventory.entries.size();++i) {
                 const auto& entry=app.homeInventory.entries[i];
                 if(entry.truckId!=truckId) continue;
                 ::ImGui::PushID(i);
-                const std::string label=entry.dataPath+(entry.shared ? " [共享，不可修改]" : "");
+                const std::string label=entry.dataPath+(entry.shared ? " [Shared, cannot be modified]" : "");
                 if(::ImGui::Selectable(label.c_str(),app.homeAccessoryIndex==i)) selectHomeAccessory(app,i);
                 ::ImGui::PopID();
             }
@@ -2194,49 +2194,49 @@ void renderHomeAccessoriesDialog(AppState& app) {
         app.homeAccessoryIndex<(int)app.homeInventory.entries.size() ?
         &app.homeInventory.entries[app.homeAccessoryIndex] : nullptr;
     if(entry && !app.homePresetMode) {
-        ui::textf(ui::muted,"配件类型：%s / 子类型：%s",entry->type.c_str(),entry->subtype.empty() ? "—" : entry->subtype.c_str());
-        ::ImGui::TextWrapped("当前路径：%s",entry->dataPath.c_str());
-        if(entry->shared) ui::text(ui::accent,"该配件或父配件被共享，不能修改。");
+        ui::textf(ui::muted,"Accessory type: %s / Sub-type: %s",entry->type.c_str(),entry->subtype.empty() ? "—" : entry->subtype.c_str());
+        ::ImGui::TextWrapped("Current path: %s",entry->dataPath.c_str());
+        if(entry->shared) ui::text(ui::accent,"This accessory or parent accessory is shared and cannot be modified.");
     }
     if(!app.homePresetMode) {
         ::ImGui::SetNextItemWidth(-100);
-        if(::ImGui::InputText("新配件路径",app.homePath,sizeof(app.homePath))) app.homePreview=false;
+        if(::ImGui::InputText("new accessory path",app.homePath,sizeof(app.homePath))) app.homePreview=false;
     }
     ::ImGui::SetNextItemWidth(-100);
-    if(::ImGui::InputText("新存档名称",app.homeName,sizeof(app.homeName))) app.homePreview=false;
+    if(::ImGui::InputText("New archive name",app.homeName,sizeof(app.homeName))) app.homePreview=false;
     std::string error,escaped;
     bool valid=false;
     if(app.homePresetMode) {
         valid=entry && entry->truckLabel=="scania.s_2016" && scaniaTvPresetAvailable();
-        if(!scaniaTvPresetAvailable()) error="此版本未包含完整的三屏电视预设资源。";
-        else if(!entry || entry->truckLabel!="scania.s_2016") error="请选择斯堪尼亚 S 2016 自有卡车。";
+        if(!scaniaTvPresetAvailable()) error="This version does not contain the complete three-screen TV preset resources.";
+        else if(!entry || entry->truckLabel!="scania.s_2016") error="Please choose Scania S 2016 own truck.";
     } else valid=entry && !entry->shared && validateHomeAccessoryPath(app.homePath,&error);
     if(valid) valid=siiEscapeName(app.homeName,&escaped,&error);
-    if(valid && !app.homePresetMode && entry->dataPath==app.homePath){valid=false;error="新路径与当前路径相同，请填写要替换的路径。";}
+    if(valid && !app.homePresetMode && entry->dataPath==app.homePath){valid=false;error="The new path is the same as the current path, please fill in the path to be replaced.";}
     if(entry && !error.empty()) ::ImGui::TextWrapped("%s",error.c_str());
     ::ImGui::BeginDisabled(!valid);
-    if(::ImGui::Button(app.homePresetMode ? "预览导入" : "预览替换")) app.homePreview=true;
+    if(::ImGui::Button(app.homePresetMode ? "preview import" : "preview replacement")) app.homePreview=true;
     ::ImGui::EndDisabled();
     if(app.homePreview && valid) {
         app.homePreviewVisible=true;
         if(app.homePresetMode) {
-            ui::text(ui::accent,"将导入三屏电视预设并保留原存档：");
-            ::ImGui::TextWrapped("卡车：%s\n新存档：%s\n资源位置：%s/MoRan/scania/TV",entry->truckLabel.c_str(),app.homeName,W2U(documentsDir()).c_str());
+            ui::text(ui::accent,"will import the three-screen TV presets and keep the original save:");
+            ::ImGui::TextWrapped("Truck: %s\n New archive: %s\n Resource location: %s/MoRan/scania/TV",entry->truckLabel.c_str(),app.homeName,W2U(documentsDir()).c_str());
         } else {
-            ui::text(ui::accent,"将仅替换所选配件的路径：");
-            ::ImGui::TextWrapped("原：%s",entry->dataPath.c_str());
-            ::ImGui::TextWrapped("新：%s",app.homePath);
+            ui::text(ui::accent,"will replace only the path of the selected accessory:");
+            ::ImGui::TextWrapped("Original: %s",entry->dataPath.c_str());
+            ::ImGui::TextWrapped("New: %s",app.homePath);
         }
     }
     app.homeApplyEnabled=valid && app.homePreview && !app.busy;
     ::ImGui::BeginDisabled(!valid || !app.homePreview);
-    if(ui::primaryButton(app.homePresetMode ? "一键导入并生成存档副本" : "修改并生成存档副本"))
+    if(ui::primaryButton(app.homePresetMode ? "One-click import and generate archive copy" : "Modify and generate archive copy"))
         if(startHomeAccessoryCopy(app)) ::ImGui::CloseCurrentPopup();
     ::ImGui::EndDisabled();
     ::ImGui::EndDisabled();
     ::ImGui::Spacing();
     ::ImGui::TextWrapped("%s",app.homeNote.c_str());
-    if(::ImGui::Button(app.homeInspectBusy ? "取消读取并关闭" : "关闭")) {
+    if(::ImGui::Button(app.homeInspectBusy ? "Cancel reading and close" : "Close")) {
         if(app.homeInspectBusy) app.cancel=true;
         app.homeInspectBusy=false;app.homePreview=false;++app.homeInspectionGeneration;
         ::ImGui::CloseCurrentPopup();
@@ -2258,7 +2258,7 @@ void consumePendingTrailerSwapInspection(AppState& app) {
     if(!result.ok) {
         app.trailerSwapInventory={};
         app.trailerSwapIndex=-1;
-        app.trailerSwapNote="无法读取挂车："+result.error;
+        app.trailerSwapNote="Unable to read trailer:"+result.error;
         return;
     }
     app.trailerSwapInventory=std::move(result.inventory);
@@ -2276,10 +2276,10 @@ void consumePendingTrailerSwapInspection(AppState& app) {
     if(!app.trailerSwapInventory.hasCurrent)
         app.trailerSwapNote=app.trailerSwapInventory.swapBlockReason;
     else {
-        app.trailerSwapNote="共 "+std::to_string(app.trailerSwapInventory.entries.size())+
-            " 辆挂车（自有 "+std::to_string(owned)+" 辆"+
-            (app.trailerSwapInventory.onJob ? "，任务进行中" : "")+
-            (app.trailerSwapInventory.onlineJob ? "，线上任务" : "")+"）。";
+        app.trailerSwapNote="total "+std::to_string(app.trailerSwapInventory.entries.size())+
+            " trailers (owned "+std::to_string(owned)+" vehicles"+
+            (app.trailerSwapInventory.onJob ? ", mission in progress" : "")+
+            (app.trailerSwapInventory.onlineJob ? ", online task" : "")+"）。";
         if(!app.trailerSwapInventory.swapBlockReason.empty())
             app.trailerSwapNote+="\n"+app.trailerSwapInventory.swapBlockReason;
     }
@@ -2292,8 +2292,8 @@ void startTrailerSwapInspection(AppState& app) {
     const uint64_t generation=++app.trailerSwapGeneration;
     app.trailerSwapBusy=true; app.cancel=false; app.busy=true;
     app.progressDone=0; app.progressTotal=1;
-    app.progressNote="读取存档里的挂车";
-    app.trailerSwapNote="正在自动解密和转换存档，请稍候……";
+    app.progressNote="Read the trailer in the archive";
+    app.trailerSwapNote="is automatically decrypting and converting the archive, please wait...";
     app.trailerSwapInventory={}; app.trailerSwapIndex=-1;
     app.worker=std::thread([&app,request,generation]{
         PendingTrailerSwapInspection result;
@@ -2311,21 +2311,21 @@ void startTrailerSwapInspection(AppState& app) {
 
 void openTrailerSwap(AppState& app) {
     auto explain=[&](const std::string& message) {
-        app.saveNote=message; logLine("更换挂车："+message);
+        app.saveNote=message; logLine("replacement trailer:"+message);
     };
-    if(app.busy) {explain("当前任务正在处理中，请完成或取消后再更换挂车。");return;}
+    if(app.busy) {explain("The current task is being processed. Please complete or cancel before changing the trailer.");return;}
     std::string error;
     if(copyBlockedByRunningGame(selectedGame(),&error)){explain(error);return;}
     if(app.selectedSlot<0 || app.selectedSlot>=(int)app.slots.size()) {
-        explain("请先在下方存档列表中选中要换挂车的存档，再点击「更换挂车」。");return;
+        explain("Please first select the archive you want to change the trailer in the archive list below, and then click \"Change Trailer\".");return;
     }
     app.trailerSwapRequest={};
     app.trailerSwapRequest.game=selectedGame();
     app.trailerSwapRequest.source=app.slots[app.selectedSlot];
     const auto& name=app.trailerSwapRequest.source.displayName;
-    ::strncpy_s(app.trailerSwapName,(name.empty()?std::string("换挂车副本"):name+" 换挂车").c_str(),_TRUNCATE);
+    ::strncpy_s(app.trailerSwapName,(name.empty()?std::string("trailer replacement copy"):name+" replacement trailer").c_str(),_TRUNCATE);
     app.showTrailerSwap=true;
-    logLine("更换挂车：打开选择窗口并读取挂车列表。");
+    logLine("Changing a trailer: Open the selection window and read the trailer list.");
     startTrailerSwapInspection(app);
 }
 
@@ -2340,8 +2340,8 @@ bool startTrailerSwap(AppState& app) {
     request.targetTrailerId=entry.id;
     request.displayName=app.trailerSwapName;
     app.busy=true;app.cancel=false;
-    app.progressDone=0;app.progressTotal=1;app.progressNote="更换挂车并另存新档";
-    app.saveNote="正在校验挂车并生成新存档，原存档保留……";
+    app.progressDone=0;app.progressTotal=1;app.progressNote="Change trailer and save new file";
+    app.saveNote="is verifying the trailer and generating a new archive. The original archive is retained...";
     app.worker=std::thread([&app,request]{
         auto result=trailerSwapToNewSave(request,[&app]{return app.cancel.load();});
         {
@@ -2358,15 +2358,15 @@ std::string trailerSwapEntryLabel(const TrailerSwapEntry& entry) {
     if(!entry.plate.empty()) label+=" / "+entry.plate;
     if(entry.cargoMass>0.5f) {
         char mass[32];::snprintf(mass,sizeof(mass),"%dt",(int)(entry.cargoMass/1000.f+0.5f));
-        label+=" / 载重 "; label+=mass;
+        label+=" / load "; label+=mass;
     }
-    label+=entry.current ? " 【当前】" : entry.owned ? "（自有）" : "（任务/市场）";
-    if(entry.blocked) label+=" 【不可选】";
+    label+=entry.current ? " 【Current】" : entry.owned ? "(own)" : "(Task/Market)";
+    if(entry.blocked) label+=" [not optional]";
     return label;
 }
 
 void renderTrailerSwapDialog(AppState& app) {
-    const char* title="更换挂车##trailer_swap";
+    const char* title="replacement trailer ##trailer_swap";
     if(app.showTrailerSwap){::ImGui::OpenPopup(title);app.showTrailerSwap=false;}
     ::ImGui::SetNextWindowSize(ImVec2(760,0),ImGuiCond_Appearing);
     if(!::ImGui::BeginPopupModal(title,nullptr,ImGuiWindowFlags_AlwaysAutoResize)) return;
@@ -2375,20 +2375,20 @@ void renderTrailerSwapDialog(AppState& app) {
        app.trailerSwapRequest.game!=selectedGame()){
         ::ImGui::CloseCurrentPopup();::ImGui::EndPopup();return;
     }
-    ui::textf(ui::muted,"源档案：%s / 存档：%s",
+    ui::textf(ui::muted,"Source file: %s / Archive: %s",
               W2U(app.trailerSwapRequest.source.profileName).c_str(),
               app.trailerSwapRequest.source.displayName.c_str());
-    ::ImGui::TextWrapped("把当前连着的挂车换成存档里的另一辆，不需要先开回车库，挂车位原地保留。货物和任务随新挂车继续；默认另存为一个新存档，进游戏载入即生效。");
+    ::ImGui::TextWrapped("Change the currently connected trailer to another one in the archive. There is no need to drive back to the garage first, and the trailer space will remain in place. The cargo and tasks continue with the new trailer; it is saved as a new archive by default and takes effect immediately after loading into the game.");
     const auto& inv=app.trailerSwapInventory;
     ::ImGui::Separator();
     if(inv.hasCurrent) {
-        ::ImGui::TextWrapped("当前卡车：%s",inv.truckLabel.c_str());
-        ::ImGui::TextWrapped("当前挂车：%s%s / %s",
+        ::ImGui::TextWrapped("Current truck: %s",inv.truckLabel.c_str());
+        ::ImGui::TextWrapped("Current trailer: %s%s / %s",
                              inv.currentPlate.empty()?"":(inv.currentPlate+" / ").c_str(),
                              inv.currentLabel.c_str(),inv.currentId.c_str());
         if(inv.onJob)
-            ui::textf(ui::muted,"任务进行中%s（货物：%s），换车后货物挂到新挂车上。",
-                      inv.onlineJob?"，且是线上任务":"",inv.jobCargo.c_str());
+            ui::textf(ui::muted,"mission %s (cargo: %s) is in progress. After changing the vehicle, the goods are hung on the new trailer.",
+                      inv.onlineJob?", and it is an online task\nWhich trailer should":"",inv.jobCargo.c_str());
     } else ::ImGui::TextWrapped("%s",inv.swapBlockReason.c_str());
     ::ImGui::Separator();
     ::ImGui::BeginDisabled(app.busy || app.trailerSwapBusy);
@@ -2396,7 +2396,7 @@ void renderTrailerSwapDialog(AppState& app) {
         app.trailerSwapIndex=std::clamp(app.trailerSwapIndex,0,(int)inv.entries.size()-1);
         const auto& selected=inv.entries[app.trailerSwapIndex];
         ::ImGui::SetNextItemWidth(-100);
-        if(::ImGui::BeginCombo("换成哪辆挂车",trailerSwapEntryLabel(selected).c_str())) {
+        if(::ImGui::BeginCombo("be replaced with?",trailerSwapEntryLabel(selected).c_str())) {
             for(int i=0;i<(int)inv.entries.size();++i) {
                 const auto& entry=inv.entries[i];
                 ::ImGui::PushID(i);
@@ -2408,20 +2408,20 @@ void renderTrailerSwapDialog(AppState& app) {
             }
             ::ImGui::EndCombo();
         }
-        if(selected.blocked) ui::text(ui::accent,("不可切换："+selected.blockReason).c_str());
-        else if(selected.current) ui::text(ui::muted,"这辆就是当前挂车，请选择另一辆。");
+        if(selected.blocked) ui::text(ui::accent,("cannot be switched:"+selected.blockReason).c_str());
+        else if(selected.current) ui::text(ui::muted,"This is the current trailer, please choose another one.");
         else {
-            std::string detail="新车："+selected.label;
-            if(!selected.plate.empty()) detail+=" / 车牌 "+selected.plate;
+            std::string detail="new car:"+selected.label;
+            if(!selected.plate.empty()) detail+=" / license plate "+selected.plate;
             if(selected.cargoMass>0.5f) {
-                char mass[32];::snprintf(mass,sizeof(mass),"%d 吨",(int)(selected.cargoMass/1000.f+0.5f));
-                detail+=" / 载重 "; detail+=mass;
+                char mass[32];::snprintf(mass,sizeof(mass),"%d tons",(int)(selected.cargoMass/1000.f+0.5f));
+                detail+=" / load "; detail+=mass;
             }
             ::ImGui::TextWrapped("%s",detail.c_str());
         }
-    } else if(!app.trailerSwapBusy) ::ImGui::TextWrapped("存档里没有挂车。");
+    } else if(!app.trailerSwapBusy) ::ImGui::TextWrapped("There is no trailer in the archive.");
     ::ImGui::SetNextItemWidth(-100);
-    ::ImGui::InputText("新存档名称",app.trailerSwapName,sizeof(app.trailerSwapName));
+    ::ImGui::InputText("New archive name",app.trailerSwapName,sizeof(app.trailerSwapName));
     ::ImGui::EndDisabled();
     std::string escaped,error;
     const bool nameValid=siiEscapeName(app.trailerSwapName,&escaped,&error);
@@ -2433,58 +2433,58 @@ void renderTrailerSwapDialog(AppState& app) {
                          !inv.entries[app.trailerSwapIndex].current &&
                          !app.busy && !app.trailerSwapBusy;
     ::ImGui::BeginDisabled(!canApply);
-    if(ui::primaryButton("更换挂车并另存为新存档"))
+    if(ui::primaryButton("Change trailer and save as new archive"))
         if(startTrailerSwap(app)) ::ImGui::CloseCurrentPopup();
     ::ImGui::EndDisabled();
     ::ImGui::SameLine();
-    if(::ImGui::Button(app.trailerSwapBusy ? "取消读取并关闭" : "关闭")) {
+    if(::ImGui::Button(app.trailerSwapBusy ? "Cancel reading and close" : "Close")) {
         if(app.trailerSwapBusy) app.cancel=true;
         app.trailerSwapBusy=false;++app.trailerSwapGeneration;
         ::ImGui::CloseCurrentPopup();
     }
     ::ImGui::Spacing();
-    if(app.trailerSwapBusy) ui::text(ui::muted,"正在读取挂车列表……");
+    if(app.trailerSwapBusy) ui::text(ui::muted,"is reading the trailer list...");
     ::ImGui::TextWrapped("%s",app.trailerSwapNote.c_str());
     ::ImGui::EndPopup();
 }
 
 void backupSelectedSlot(AppState& app) {
     if (app.selectedSlot < 0 || app.selectedSlot >= (int)app.slots.size()) {
-        app.saveNote = "请先在列表里选中一个存档";
+        app.saveNote = "Please select an archive in the list first";
         return;
     }
     const SaveSlot& slot = app.slots[(size_t)app.selectedSlot];
     std::string err;
     std::wstring dir = backupSlot(slot, "manual", &err);
     if (dir.empty()) {
-        app.saveNote = "备份失败：" + err;
+        app.saveNote = "Backup failed:" + err;
         logLine(app.saveNote);
         return;
     }
-    app.saveNote = "已备份到：" + W2U(dir);
-    logLine("已备份 " + slot.label + " -> " + W2U(dir));
+    app.saveNote = "has been backed up to:" + W2U(dir);
+    logLine("has been backed up " + slot.label + " -> " + W2U(dir));
     app.backups = listBackups();
 }
 
 void restoreSelectedBackup(AppState& app) {
     if (app.selectedBackup < 0 || app.selectedBackup >= (int)app.backups.size()) {
-        app.saveNote = "请先在「备份列表」里选中一个备份";
+        app.saveNote = "Please select a backup in the \"Backup List\" first";
         return;
     }
     app.requestRestoreConfirm = true;
-    app.saveNote = "还原会覆盖当前存档，请在确认框中核对。";
+    app.saveNote = "Restore will overwrite the current archive, please check in the confirmation box.";
 }
 
 namespace {
 
 void performRestoreSelectedBackup(AppState& app) {
     if (app.selectedBackup < 0 || app.selectedBackup >= (int)app.backups.size()) {
-        app.saveNote = "选中的备份已失效，请重新选择";
+        app.saveNote = "The selected backup has expired, please select again.";
         return;
     }
     DWORD gamePid = 0;
     if (findProcess(selectedProcessName(), &gamePid, nullptr)) {
-        app.saveNote = fmt("还原已取消：请先退出%s，避免游戏或 Steam 云同步覆盖文件。", selectedGameDescriptor().shortName);
+        app.saveNote = fmt("Restore canceled: Please exit %s first to avoid overwriting files by games or Steam cloud synchronization.", selectedGameDescriptor().shortName);
         return;
     }
     const BackupInfo info = app.backups[(size_t)app.selectedBackup];
@@ -2502,25 +2502,25 @@ void performRestoreSelectedBackup(AppState& app) {
     if (current) {
         safetyBackup = backupSlot(*current, "before_restore", &err);
         if (safetyBackup.empty()) {
-            app.saveNote = "还原已取消：无法先备份当前存档（" + err + "）";
+            app.saveNote = "Restore canceled: Unable to back up current archive first (" + err + "）";
             logLine(app.saveNote);
             return;
         }
     } else if (::GetFileAttributesW(info.originalDir.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        app.saveNote = fmt("还原已取消：目标目录不是当前可识别的%s存档。", selectedGameDescriptor().shortName);
+        app.saveNote = fmt("Restore canceled: The target directory is not a currently recognized %s archive.", selectedGameDescriptor().shortName);
         logLine(app.saveNote);
         return;
     }
     if (!restoreBackup(info, &err)) {
-        app.saveNote = "还原失败：" + err;
+        app.saveNote = "restore failed:" + err;
         logLine(app.saveNote);
         return;
     }
-    app.saveNote = fmt("已还原 %s / %s 到 %s%s", W2U(info.profile).c_str(),
+    app.saveNote = fmt("has restored %s / %s to %s%s", W2U(info.profile).c_str(),
                        W2U(info.slot).c_str(), W2U(info.originalDir).c_str(),
                        safetyBackup.empty()
                            ? ""
-                           : ("；还原前状态已备份到 " + W2U(safetyBackup)).c_str());
+                           : ("; The state before restoration has been backed up to " + W2U(safetyBackup)).c_str());
     logLine(app.saveNote);
     app.slots = listSlots();
     app.backups = listBackups();
@@ -2583,11 +2583,11 @@ void consumePendingExport(AppState& app) {
 
 void startSelectedExport(AppState& app, bool readable) {
     if (app.busy) {
-        app.saveNote = "已有后台任务在进行，请等待完成或取消后再导出";
+        app.saveNote = "There is already a background task in progress. Please wait for completion or cancellation before exporting.";
         return;
     }
     if (app.selectedSlot < 0 || app.selectedSlot >= (int)app.slots.size()) {
-        app.saveNote = "请先在列表里选中一个存档";
+        app.saveNote = "Please select an archive in the list first";
         return;
     }
     joinWorker(app);
@@ -2598,7 +2598,7 @@ void startSelectedExport(AppState& app, bool readable) {
     if (!isDirSegment(exports) && !::CreateDirectoryW(exports.c_str(), nullptr)) {
         const DWORD e = ::GetLastError();
         if (e != ERROR_ALREADY_EXISTS || !isDirSegment(exports)) {
-            app.saveNote = "导出失败：无法创建导出目录（可能是权限不足或路径被占用）";
+            app.saveNote = "Export failed: Unable to create the export directory (may be insufficient permissions or the path is occupied)";
             logLine(app.saveNote);
             return;
         }
@@ -2611,15 +2611,15 @@ void startSelectedExport(AppState& app, bool readable) {
         if (!exportFilePathExists(candidate)) { outPath = candidate; break; }
     }
     if (outPath.empty()) {
-        app.saveNote = "导出失败：同名文件过多，请清理导出目录后重试";
+        app.saveNote = "Export failed: There are too many files with the same name. Please clear the export directory and try again.";
         logLine(app.saveNote);
         return;
     }
     app.cancel = false;
     app.progressDone = 0;
     app.progressTotal = 1;
-    app.progressNote = readable ? "导出可读 SII" : "解密导出存档";
-    app.saveNote = readable ? "正在后台解密并转换可读 SII 文本……" : "正在后台解密导出存档……";
+    app.progressNote = readable ? "exports readable SII" : "Decrypted export archive";
+    app.saveNote = readable ? "is decrypting and converting readable SII text in the background..." : "is decrypting and exporting archives in the background...";
     app.busy = true;
     try {
         app.worker = std::thread([&app, slot, outPath, game, readable]() {
@@ -2632,28 +2632,28 @@ void startSelectedExport(AppState& app, bool readable) {
                 if (readable) {
                     ReadableExportInfo info;
                     if (!exportReadableSii(slot, outPath, &info, &err, canceled)) {
-                        result.note = "可读导出失败：" + (err.empty() ? "未知错误" : err);
+                        result.note = "Readable export failed:" + (err.empty() ? "unknown error" : err);
                     } else {
-                        result.note = fmt("已导出可读 SII（%s，%s）-> %s。重复导出不会覆盖旧文件",
-                            info.innerFormat == "bsii" ? "BSII v3 已转换为文本" : "SII 文本原样保留",
+                        result.note = fmt("Exported readable SII (%s, %s) -> %s. Repeated export will not overwrite old files",
+                            info.innerFormat == "bsii" ? "BSII v3 converted to text" : "SII text remains as is",
                             formatSize(info.textSize).c_str(), W2U(outPath).c_str());
                     }
                 } else {
                     DecryptInfo info;
                     if (!exportDecrypted(slot, outPath, &info, &err, canceled)) {
-                        result.note = "解密导出失败：" + (err.empty() ? "未知错误" : err);
+                        result.note = "Decryption and export failed:" + (err.empty() ? "unknown error" : err);
                     } else {
-                        const char* kind = info.innerFormat == "text" ? "SII 文本" :
-                                           info.innerFormat == "bsii" ? "BSII 二进制，保留原格式" :
-                                           "3nK 二进制，保留原格式";
-                        result.note = fmt("已解密导出（%s，%s）-> %s。重复导出不会覆盖旧文件",
+                        const char* kind = info.innerFormat == "text" ? "SII text" :
+                                           info.innerFormat == "bsii" ? "BSII binary, retain the original format" :
+                                           "3nK binary, retain the original format";
+                        result.note = fmt("decrypted and exported (%s, %s) -> %s. Repeated export will not overwrite old files",
                             kind, formatSize(info.innerSize).c_str(), W2U(outPath).c_str());
                     }
                 }
             } catch (const std::exception& e) {
-                result.note = std::string("导出失败：") + e.what();
+                result.note = std::string("Export failed:") + e.what();
             } catch (...) {
-                result.note = "导出失败：发生未知异常";
+                result.note = "Export failed: Unknown exception occurred";
             }
             {
                 std::lock_guard<std::mutex> lock(app.resultMutex);
@@ -2664,7 +2664,7 @@ void startSelectedExport(AppState& app, bool readable) {
         });
     } catch (const std::exception& e) {
         app.busy = false;
-        app.saveNote = std::string("无法启动导出任务：") + e.what();
+        app.saveNote = std::string("Unable to start the export task:") + e.what();
         logLine(app.saveNote);
     }
 }
@@ -2679,39 +2679,39 @@ void applyTextPatch(AppState& app) {
     // 同时杜绝在线会话中通过存档编辑绕过进程内存写入闸门。
     DWORD runningPid = 0;
     if (findProcess(selectedProcessName(), &runningPid, nullptr)) {
-        app.saveNote = "请先完全退出游戏，再修改明文存档（游戏运行中可能自动保存并覆盖该文件）。";
+        app.saveNote = "Please exit the game completely before modifying the plain text archive (the file may be automatically saved and overwritten while the game is running).";
         logLine(app.saveNote);
         return;
     }
     if (app.selectedSlot < 0 || app.selectedSlot >= (int)app.slots.size()) {
-        app.saveNote = "请先在列表里选中一个存档";
+        app.saveNote = "Please select an archive in the list first";
         return;
     }
     SaveSlot slot = app.slots[(size_t)app.selectedSlot];
     if (slot.format != "text") {
-        app.saveNote = "只对「明文(SiiNunit)」存档有效；加密/二进制存档不写入。";
+        app.saveNote = "is only valid for \"plain text (SiiNunit)\" archives; encrypted/binary archives are not written.";
         return;
     }
     double money = 0, xp = 0;
     bool setMoney = parseNumber(app.saveMoney, false, &money);
     bool setXp = parseNumber(app.saveXp, false, &xp);
     if (!setMoney && !setXp) {
-        app.saveNote = "请填写要写入的现金或经验";
+        app.saveNote = "Please fill in the cash or experience to be written";
         return;
     }
     std::string err;
     std::wstring backup = backupSlot(slot, "before_text_edit", &err);
     if (backup.empty()) {
-        app.saveNote = "写入前备份失败：" + err;
+        app.saveNote = "Backup failed before writing:" + err;
         logLine(app.saveNote);
         return;
     }
     if (!patchTextSave(slot.gameSii, setMoney, (int64_t)money, setXp, (int64_t)xp, &err)) {
-        app.saveNote = "写入失败：" + err;
+        app.saveNote = "writing failure:" + err;
         logLine(app.saveNote);
         return;
     }
-    app.saveNote = fmt("已写入明文存档（备份：%s）。进游戏读取存档「%s」即可看到新数值。",
+    app.saveNote = fmt("has been written to the plaintext archive (backup: %s). Enter the game and load the archive \"%s\" to see the new values.",
                        W2U(backup).c_str(), W2U(slot.slotName).c_str());
     logLine(app.saveNote);
     app.backups = listBackups();
@@ -2735,53 +2735,53 @@ void renderValuePanel(AppState& app, PanelKind kind, const char* title, const ch
     ui::textf(ui::accent, "◆ %s", title);
     if (lockVar && *lockVar) {
         ui::next(220);
-        ui::textf(ImVec4(0.22f, 0.85f, 0.52f, 1.0f), "[ 锁定保持中 ]");
+        ui::textf(ImVec4(0.22f, 0.85f, 0.52f, 1.0f), "[Lock held]");
     }
     ::ImGui::Separator();
     ::ImGui::Spacing();
 
     // 步骤 1: 扫描定位
-    ui::textf(ImVec4(0.95f, 0.75f, 0.30f, 1.0f), "① 扫描");
+    ui::textf(ImVec4(0.95f, 0.75f, 0.30f, 1.0f), "① Scan");
     ui::next(220);
-    ::ImGui::TextWrapped("%s", "类型");
+    ::ImGui::TextWrapped("%s", "type");
     ui::next(220);
     typeCombo("##type", ptype);
     if (vtypeInfo(*ptype).isFloat) {
         ui::next(220);
-        ::ImGui::TextWrapped("%s", "容差");
+        ::ImGui::TextWrapped("%s", "tolerance");
         ui::next(220);
         ::ImGui::SetNextItemWidth(70);
         ::ImGui::InputText("##tol", toleranceFor(app, kind), 16, ImGuiInputTextFlags_CharsDecimal);
     }
 
-    ::ImGui::TextWrapped("%s", "游戏当前值");
+    ::ImGui::TextWrapped("%s", "Game current value");
     ui::next(220);
     ::ImGui::SetNextItemWidth(170);
-    ::ImGui::InputTextWithHint("##current", "当前数值", current, 32, ImGuiInputTextFlags_CharsDecimal);
+    ::ImGui::InputTextWithHint("##current", "current value", current, 32, ImGuiInputTextFlags_CharsDecimal);
     ui::next(220);
     ::ImGui::BeginDisabled(app.busy.load());
-    if (::ImGui::Button(" 首次扫描 ", ImVec2(120, 26))) startFirstScan(app, kind);
+    if (::ImGui::Button(" first scan ", ImVec2(120, 26))) startFirstScan(app, kind);
     ui::next(220);
-    if (::ImGui::Button(" 变动后收窄 ", ImVec2(120, 26))) startNextScan(app, kind, ScanMode::Exact);
+    if (::ImGui::Button(" narrowed after changes ", ImVec2(120, 26))) startNextScan(app, kind, ScanMode::Exact);
     ui::next(220);
-    if (::ImGui::Button(" 未变收窄 ", ImVec2(110, 26))) startNextScan(app, kind, ScanMode::Unchanged);
+    if (::ImGui::Button(" has not changed and narrowed ", ImVec2(110, 26))) startNextScan(app, kind, ScanMode::Unchanged);
     ::ImGui::EndDisabled();
 
     ::ImGui::Spacing();
 
     // 步骤 2: 修改生效
-    ui::textf(ui::accent, "② 写入 / 锁定");
-    ::ImGui::TextWrapped("%s", "目标修改值");
+    ui::textf(ui::accent, "② Write/Lock");
+    ::ImGui::TextWrapped("%s", "target modification value");
     ui::next(220);
     ::ImGui::SetNextItemWidth(170);
-    ::ImGui::InputTextWithHint("##target", "目标数值", target, 32, ImGuiInputTextFlags_CharsDecimal);
+    ::ImGui::InputTextWithHint("##target", "target value", target, 32, ImGuiInputTextFlags_CharsDecimal);
     ui::next(220);
     ::ImGui::BeginDisabled(app.busy.load());
-    if (::ImGui::Button(" 写入修改(立即生效) ", ImVec2(170, 26))) writePanelValues(app, kind);
+    if (::ImGui::Button(" write modification (effective immediately) ", ImVec2(170, 26))) writePanelValues(app, kind);
     ui::next(220);
-    if (::ImGui::Checkbox("锁定此数值", lockVar)) togglePanelLock(app, kind, *lockVar);
+    if (::ImGui::Checkbox("Lock this value", lockVar)) togglePanelLock(app, kind, *lockVar);
     ui::next(220);
-    if (::ImGui::Button("解除锁定", ImVec2(80, 26))) {
+    if (::ImGui::Button("Unlock", ImVec2(80, 26))) {
         *lockVar = false;
         togglePanelLock(app, kind, false);
     }
@@ -2789,9 +2789,9 @@ void renderValuePanel(AppState& app, PanelKind kind, const char* title, const ch
 
     // 快速预设按钮
     if (kind == PanelKind::Money) {
-        ui::textf(ImVec4(0.55f, 0.60f, 0.72f, 1.0f), "预设");
+        ui::textf(ImVec4(0.55f, 0.60f, 0.72f, 1.0f), "preset");
         ui::next(220);
-        if (::ImGui::Button("+100万")) {
+        if (::ImGui::Button("+1 million")) {
             double cur = 0;
             parseNumber(target, false, &cur);
             if (cur <= 0) parseNumber(current, false, &cur);
@@ -2801,31 +2801,31 @@ void renderValuePanel(AppState& app, PanelKind kind, const char* title, const ch
             ::strncpy_s(target, 32, buf, _TRUNCATE);
         }
         ui::next(220);
-        if (::ImGui::Button("1,000 万")) ::strncpy_s(target, 32, "10000000", _TRUNCATE);
+        if (::ImGui::Button("10 million")) ::strncpy_s(target, 32, "10000000", _TRUNCATE);
         ui::next(220);
-        if (::ImGui::Button("5,000 万")) ::strncpy_s(target, 32, "50000000", _TRUNCATE);
+        if (::ImGui::Button("50 million")) ::strncpy_s(target, 32, "50000000", _TRUNCATE);
         ui::next(220);
-        if (::ImGui::Button("1 亿")) ::strncpy_s(target, 32, "100000000", _TRUNCATE);
+        if (::ImGui::Button("100 million")) ::strncpy_s(target, 32, "100000000", _TRUNCATE);
         ui::next(220);
-        if (::ImGui::Button("9.99 亿(上限)")) ::strncpy_s(target, 32, "999999999", _TRUNCATE);
+        if (::ImGui::Button("999 million (upper limit)")) ::strncpy_s(target, 32, "999999999", _TRUNCATE);
     } else if (kind == PanelKind::Xp) {
-        ui::textf(ImVec4(0.55f, 0.60f, 0.72f, 1.0f), "预设");
+        ui::textf(ImVec4(0.55f, 0.60f, 0.72f, 1.0f), "preset");
         ui::next(220);
-        if (::ImGui::Button("5,000 (约10级)")) ::strncpy_s(target, 32, "5000", _TRUNCATE);
+        if (::ImGui::Button("5,000 (about level 10)")) ::strncpy_s(target, 32, "5000", _TRUNCATE);
         ui::next(220);
-        if (::ImGui::Button("50,000 (约35级)")) ::strncpy_s(target, 32, "50000", _TRUNCATE);
+        if (::ImGui::Button("50,000 (about level 35)")) ::strncpy_s(target, 32, "50000", _TRUNCATE);
         ui::next(220);
-        if (::ImGui::Button("150,000 (满级技能)")) ::strncpy_s(target, 32, "150000", _TRUNCATE);
+        if (::ImGui::Button("150,000 (full level skill)")) ::strncpy_s(target, 32, "150000", _TRUNCATE);
         ui::next(220);
-        if (::ImGui::Button("1,000,000 (百万经验)")) ::strncpy_s(target, 32, "1000000", _TRUNCATE);
+        if (::ImGui::Button("1,000,000 (one million experience points)")) ::strncpy_s(target, 32, "1000000", _TRUNCATE);
     }
 
     ::ImGui::Spacing();
     const std::string& st = statusFor(app, kind);
     if (!st.empty()) {
-        ui::textf(ui::accent, "状态：%s", st.c_str());
+        ui::textf(ui::accent, "status: %s", st.c_str());
     } else {
-        ui::textf(ui::muted, "提示：%s", hint);
+        ui::textf(ui::muted, "Tip: %s", hint);
     }
     ::ImGui::EndChild();
     ::ImGui::PopID();
@@ -2856,7 +2856,7 @@ void consumePendingEconomy(AppState& app) {
     }
     if (!result.log.empty()) logLine(result.log);
     if (result.cancelled) {
-        app.locateStatus = "结构化定位已取消。";
+        app.locateStatus = "Structured positioning has been cancelled.";
         return;
     }
     // 结构化数据统一在这里落地（工作线程不再直接写 located* / locateStatus）
@@ -2872,49 +2872,49 @@ void consumePendingEconomy(AppState& app) {
     // 组装状态文案
     std::string status;
     if (result.moneyTruncated) {
-        status = "定位失败（已安全关闭）：" + result.moneyDetail + "。";
+        status = "positioning failed (safely closed):" + result.moneyDetail + "。";
     } else if (result.moneyAmbiguous) {
-        status = "定位失败（已安全关闭）：" + result.moneyDetail +
-                 "。存在多个同分 bank 候选，无法唯一确定，已拒绝自动写入；"
-                 "请让金额变化后重新定位，或用「高级：手动扫描」人工筛选。";
+        status = "positioning failed (safely closed):" + result.moneyDetail +
+                 ". There are multiple candidates for the same bank, which cannot be uniquely determined, and automatic writing has been rejected;"
+                 "Please allow the amount to change before repositioning, or use \"Advanced: Manual Scan\" to manually filter.";
     } else if (result.moneyLocated) {
-        status = fmt("已定位：金钱 %s", formatInt(result.moneyValue).c_str());
+        status = fmt("has been positioned: money %s", formatInt(result.moneyValue).c_str());
         if (result.xpTruncated) {
-            status += fmt("（经验候选过多未完整检查：%s）", result.xpDetail.c_str());
+            status += fmt("(Too many experience candidates and incomplete check: %s)", result.xpDetail.c_str());
         } else if (result.xpAmbiguous) {
-            status += fmt("（经验定位存在歧义：%s，已拒绝自动写入经验）",
+            status += fmt("(There is ambiguity in experience positioning: %s, automatic writing of experience has been refused)",
                           result.xpDetail.c_str());
         } else if (result.xpLocated) {
-            status += fmt("，经验 %s", formatInt(result.xpValue).c_str());
+            status += fmt(", experience %s", formatInt(result.xpValue).c_str());
         } else {
-            status += "（经验未定位）";
+            status += "(experience not located)";
         }
     } else {
-        status = "未定位：" + result.moneyDetail;
-        if (result.xpTruncated) status += "；经验：" + result.xpDetail;
+        status = "not located:" + result.moneyDetail;
+        if (result.xpTruncated) status += ";Experience:" + result.xpDetail;
     }
 
     if (result.autoWriteMoney) {
         if (result.moneyWriteOk) {
             app.locatedMoneyValue = result.moneyWritten;
-            status += fmt("。已直接写入金钱 = %s（回读一致），无需锁定。",
+            status += fmt(". Money has been written directly = %s (readback consistent), no lock required.",
                           formatInt(result.moneyWritten).c_str());
         } else {
-            status += "。金钱未写入：" +
+            status += ". Money is not written:" +
                       (result.moneyWriteError.empty()
-                           ? std::string("目标金额无效")
+                           ? std::string("The target amount is invalid")
                            : result.moneyWriteError);
         }
     }
     if (result.autoWriteXp) {
         if (result.xpWriteOk) {
             app.locatedXpValue = result.xpWritten;
-            status += fmt("。已直接写入经验 = %s（回读一致），无需锁定。",
+            status += fmt(". Experience = %s has been written directly (readback consistent), no lock required.",
                           formatInt(result.xpWritten).c_str());
         } else {
-            status += "。经验未写入：" +
+            status += ". Experience not written:" +
                       (result.xpWriteError.empty()
-                           ? std::string("目标经验必须是 32 位整数")
+                           ? std::string("Target experience must be a 32-bit integer")
                            : result.xpWriteError);
         }
     }
@@ -2943,7 +2943,7 @@ void clearLocatedEconomy(AppState& app) {
     app.locatedEconomy = 0;
     app.locatedXpValue = 0;
     app.locatedXpDetail.clear();
-    app.locateStatus = "已清除定位结果。";
+    app.locateStatus = "Positioning results have been cleared.";
 }
 
 void startLocateEconomy(AppState& app) {
@@ -2954,26 +2954,33 @@ void startLocateEconomy(AppState& app) {
         return;
     }
     if (app.busy.load()) {
-        app.locateStatus = "已有任务在进行，请等它结束。";
+        app.locateStatus = "A task is running. Wait for it to finish.";
         return;
     }
     if (!ensureAttached(app)) {
         app.autoWriteMoneyAfterLocate = app.autoWriteXpAfterLocate = false;
-        app.locateStatus = "还没有附加到游戏进程。";
+        app.locateStatus = "Not attached to game.";
         return;
     }
     const bool atsAuto = selectedGame() == GameId::Ats;
     double moneyValue = 0.0;
     if (atsAuto) {
         uint64_t imageBase = 0;
-        if (!verifyGameLayout(app.mem, &imageBase, &app.locateStatus)) {
+        const LayoutProfile* profile = nullptr;
+        if (!verifyGameLayout(app.mem, &imageBase, &app.locateStatus, &profile)) {
             app.autoWriteMoneyAfterLocate = app.autoWriteXpAfterLocate = false;
             logLine(app.locateStatus);
             return;
         }
-        moneyValue = static_cast<double>(imageBase + layoutProfile(GameId::Ats).bankVtableRva);
+        if (!profile->bankVtableRva || !profile->economyVtableRva) {
+            app.autoWriteMoneyAfterLocate = app.autoWriteXpAfterLocate = false;
+            app.locateStatus = "Automatic money/XP editing is not verified for ATS 1.62. Engine tuning is supported.";
+            logLine(app.locateStatus);
+            return;
+        }
+        moneyValue = static_cast<double>(imageBase + profile->bankVtableRva);
     } else if (!parseNumber(app.moneyCurrent, false, &moneyValue)) {
-        app.locateStatus = "请先在「游戏当前值」里填写游戏里显示的当前金钱。";
+        app.locateStatus = "Enter your current in-game money in Current game value.";
         return;
     }
     double xpValue = 0.0;
@@ -3005,9 +3012,9 @@ void startLocateEconomy(AppState& app) {
     app.cancel.store(false);
     app.progressDone.store(0);
     app.progressTotal.store(2);
-    app.progressNote = "结构化定位：查找金额";
-    app.locateStatus = atsAuto ? "定位中：按美卡银行类型寻找当前金额对象…" : "定位中：在内存里寻找与当前金额一致的 bank 对象…";
-    logLine("开始结构化定位金钱/经验（按当前游戏独立运行时布局）");
+    app.progressNote = "Structured search: money";
+    app.locateStatus = atsAuto ? "Searching for the ATS bank object..." : "Searching memory for a bank object matching your current money...";
+    logLine("Starting structured money/XP search for the selected game");
 
     app.worker = std::thread([&app, moneyValue, atsAuto, xpValue, hasXp, workers, regionCap,
                               autoWriteMoney, autoWriteXp, moneyTargetValue, moneyTargetValid,
@@ -3037,9 +3044,9 @@ void startLocateEconomy(AppState& app) {
             if (pick.truncated) {
                 result.moneyTruncated = true;
                 result.moneyDetail =
-                    fmt("金额候选 %llu 个，超过本次可检查上限 %llu 个（只检查了前 %llu 个）："
-                        "无法保证不存在同分或更高分的 bank 对象，已拒绝写入；"
-                        "请缩小扫描范围（降低「跳过超大内存区」阈值）或继续收窄候选后重试",
+                    fmt("%llu money candidates exceed the limit of %llu (checked only %llu): "
+                        "Cannot exclude equally or better matching bank objects; write refused. "
+                        "Reduce the scan range or narrow the candidates and try again",
                         (unsigned long long)moneyHits, (unsigned long long)kEconomyProbeCap,
                         (unsigned long long)pick.examined);
             } else if (pick.unique) {
@@ -3047,15 +3054,15 @@ void startLocateEconomy(AppState& app) {
                 result.moneyAddress = pick.fieldAddress;
                 result.moneyBank = pick.object;
                 result.moneyValue = pick.value;
-                result.moneyDetail = fmt("金额候选 %llu 个，唯一可信 bank 对象（校验 %d 分）",
+                result.moneyDetail = fmt("%llu money candidates; one verified bank object (score %d)",
                                          (unsigned long long)moneyHits, pick.score);
             } else if (pick.probed) {
                 result.moneyAmbiguous = true;
                 result.moneyDetail =
-                    fmt("金额候选 %llu 个，结构校验通过且同分最高分候选 %d 个",
+                    fmt("%llu money candidates; %d verified objects tied for best score",
                         (unsigned long long)moneyHits, pick.tied);
             } else {
-                result.moneyDetail = fmt("金额候选 %llu 个，但都没有通过 bank 结构校验",
+                result.moneyDetail = fmt("%llu money candidates; none passed bank validation",
                                          (unsigned long long)moneyHits);
                 if (moneyFields.size() == 1) {
                     ProbeResult rejected;
@@ -3064,13 +3071,13 @@ void startLocateEconomy(AppState& app) {
                 }
             }
         } else if (!app.cancel.load()) {
-            result.moneyDetail = atsAuto ? "未找到美卡银行类型对象，请确认存档已加载后重新定位" : "内存中没有找到与当前金额一致的数值（可在游戏里买卖一次让金额变化后重试）";
+            result.moneyDetail = atsAuto ? "ATS bank object not found. Load a profile and try again." : "Current money not found. Change your balance in game and try again.";
         }
 
         app.progressDone.store(1);
         // 阶段性进度说明走 pending 通道（旧实现直接写 app.progressNote，属数据竞争）
         postResult(app, PanelKind::Money, std::string(), std::string(),
-                   "结构化定位：由 bank 指针反查经济对象");
+                   "Structured search: economy object from bank pointer");
 
         // 2) 由「指向 bank 的指针」反查经济对象（经验地址随之确定）。
         //    候选必须真的引用已定位的 bank，且唯一同分才可用。
@@ -3084,8 +3091,8 @@ void startLocateEconomy(AppState& app) {
                 if (pick.truncated) {
                     result.xpTruncated = true;
                     result.xpDetail =
-                        fmt("bank 引用 %llu 处，超过本次可检查上限 %llu 个（只检查了前 %llu 个）："
-                            "无法保证不存在同分或更高分的经济对象，已拒绝写入经验",
+                        fmt("bank refers to %llu, which exceeds the upper limit of %llu that can be checked this time (only the first %llu were checked):"
+                            "There is no guarantee that there is no economic object with the same score or higher, and experience writing has been refused.",
                             (unsigned long long)refHits, (unsigned long long)kEconomyProbeCap,
                             (unsigned long long)pick.examined);
                 } else if (pick.unique) {
@@ -3094,18 +3101,18 @@ void startLocateEconomy(AppState& app) {
                     result.economyObject = pick.object;
                     result.xpValue = pick.value;
                     result.xpDetail =
-                        fmt("由 %llu 处 bank 引用确认经济对象（校验 %d 分，引用一致）",
+                        fmt("is referenced by the bank at %llu to confirm the economic object (check %d points, the references are consistent)",
                             (unsigned long long)refHits, pick.score);
                 } else if (pick.probed) {
                     result.xpAmbiguous = true;
                     result.xpDetail =
-                        fmt("bank 引用 %llu 处，同分经济对象候选 %d 个",
+                        fmt("bank refers to %llu, and there are %d candidates for the same economic object.",
                             (unsigned long long)refHits, pick.tied);
                 } else {
-                    result.xpDetail = "找到 bank 引用，但经济对象结构校验未通过";
+                    result.xpDetail = "The bank reference was found, but the economic object structure check failed.";
                 }
             } else if (!app.cancel.load()) {
-                result.xpDetail = "没有找到指向 bank 的引用（经济对象可能尚未加载）";
+                result.xpDetail = "No reference to bank found (economic object may not have been loaded yet)";
             }
         }
 
@@ -3123,8 +3130,8 @@ void startLocateEconomy(AppState& app) {
                 if (pick.truncated) {
                     result.xpTruncated = true;
                     result.xpDetail =
-                        fmt("经验值候选 %llu 个，超过本次可检查上限 %llu 个（只检查了前 %llu 个）："
-                            "无法保证不存在同分或更高分的经济对象，已拒绝写入经验",
+                        fmt("There are %llu experience value candidates, exceeding the upper limit of %llu that can be checked this time (only the first %llu were checked):"
+                            "There is no guarantee that there is no economic object with the same score or higher, and experience writing has been refused.",
                             (unsigned long long)xpHits, (unsigned long long)kEconomyProbeCap,
                             (unsigned long long)pick.examined);
                 } else if (pick.unique) {
@@ -3133,22 +3140,22 @@ void startLocateEconomy(AppState& app) {
                     result.economyObject = pick.object;
                     result.xpValue = pick.value;
                     result.xpDetail =
-                        fmt("按经验值定位：候选 %llu 个，唯一可信经济对象（校验 %d 分%s）",
+                        fmt("is positioned according to experience value: %llu candidates, the only trusted economic object (check %d points %s)",
                             (unsigned long long)xpHits, pick.score,
-                            requiredBank ? "，已确认引用已定位的 bank 对象" : "");
+                            requiredBank ? ", confirmed reference to the located bank object" : "");
                 } else if (pick.probed) {
                     result.xpAmbiguous = true;
                     result.xpDetail =
-                        fmt("按经验值定位：候选 %llu 个，同分经济对象候选 %d 个",
+                        fmt("is positioned based on experience value: %llu candidates, %d candidates for the same economic object",
                             (unsigned long long)xpHits, pick.tied);
                 } else {
                     result.xpDetail =
-                        fmt("经验值候选 %llu 个，但结构校验未通过%s",
+                        fmt("experience value candidates %llu, but the structure verification failed %s",
                             (unsigned long long)xpHits,
-                            requiredBank ? "（或未引用已定位的 bank 对象）" : "");
+                            requiredBank ? "(or the located bank object is not referenced)" : "");
                 }
             } else if (!app.cancel.load()) {
-                result.xpDetail = "内存中没有找到与当前经验一致的数值";
+                result.xpDetail = "No value consistent with the current experience was found in the memory.";
             }
         }
 
@@ -3160,7 +3167,7 @@ void startLocateEconomy(AppState& app) {
             result.autoWriteMoney = true;
             // 扫描可能持续数十秒：真正写入前用最新状态复核写入闸门
             if (!gateAtWrite.empty()) {
-                result.moneyWriteError = "联机保护：" + gateAtWrite + "（未写入）";
+                result.moneyWriteError = "online protection:" + gateAtWrite + "(not written)";
             } else if (moneyTargetValid) {
                 std::string error;
                 if (writeBankMoneyGuarded(app, result.moneyAddress, result.moneyBank,
@@ -3172,14 +3179,14 @@ void startLocateEconomy(AppState& app) {
                 }
             } else {
                 result.moneyWriteError = moneyTargetError.empty()
-                                             ? std::string("「要改成的金额」不是有效数字")
+                                             ? std::string("\"The amount to be changed\" is not a valid number")
                                              : moneyTargetError;
             }
         }
         if (!app.cancel.load() && autoWriteXp && result.xpLocated) {
             result.autoWriteXp = true;
             if (!gateAtWrite.empty()) {
-                result.xpWriteError = "联机保护：" + gateAtWrite + "（未写入）";
+                result.xpWriteError = "online protection:" + gateAtWrite + "(not written)";
             } else if (xpTargetValid) {
                 std::string error;
                 if (writeXpGuarded(app, result.xpAddress, result.economyObject,
@@ -3191,19 +3198,19 @@ void startLocateEconomy(AppState& app) {
                 }
             } else {
                 result.xpWriteError = xpTargetError.empty()
-                                          ? std::string("「要改成的经验」不是有效的 32 位整数")
+                                          ? std::string("\"Experience to be changed to\" is not a valid 32-bit integer")
                                           : xpTargetError;
             }
         }
 
         result.cancelled = app.cancel.load();
-        result.log = "结构化定位：金钱 " +
+        result.log = "Structured Positioning: Money " +
                      (result.moneyLocated
                           ? fmt("0x%llX", (unsigned long long)result.moneyAddress)
-                          : std::string("未定位")) +
-                     "；经验 " +
+                          : std::string("not located")) +
+                     ";Experience " +
                      (result.xpLocated ? fmt("0x%llX", (unsigned long long)result.xpAddress)
-                                       : std::string("未定位"));
+                                       : std::string("not located"));
         {
             std::lock_guard<std::mutex> lock(app.resultMutex);
             result.ready = true;
@@ -3226,18 +3233,18 @@ void directModifyMoney(AppState& app) {
         return;
     }
     if (app.busy.load()) {
-        app.locateStatus = "已有任务在进行，请等它结束。";
+        app.locateStatus = "A task is running. Wait for it to finish.";
         return;
     }
     int64_t target = 0;
     std::string targetError;
     if (!parseMoneyTarget(app.moneyTarget, &target, &targetError)) {
-        app.locateStatus = "请先在「要改成的金额」里填写有效金额：" + targetError;
+        app.locateStatus = "Please fill in the valid amount in the \"Amount to be changed\" first:" + targetError;
         return;
     }
     const std::string gate = writeGateReason(app);
     if (!gate.empty()) {
-        app.locateStatus = "已拒绝写入：" + gate;
+        app.locateStatus = "Write denied:\nWhen using" + gate;
         logLine(app.locateStatus);
         return;
     }
@@ -3247,12 +3254,12 @@ void directModifyMoney(AppState& app) {
     }
     double current = 0.0;
     if (selectedGame() == GameId::Ets2 && !parseNumber(app.moneyCurrent, false, &current)) {
-        app.locateStatus = "第一次使用需要引导定位：把游戏里显示的当前金额填到「游戏当前值」，"
-                           "再点「直接改钱」（之后就不需要再填了）。";
+        app.locateStatus = "for the first time, you need to be guided and positioned: fill in the current amount displayed in the game into \"Game Current Value\"."
+                           "Click \"Change Money Directly\" (you don't need to fill it out again after that).";
         return;
     }
     app.autoWriteMoneyAfterLocate = true;
-    app.locateStatus = "尚未定位：先自动定位（约 10~25 秒），成功后立即直接写入目标金额。";
+    app.locateStatus = "has not been positioned yet: Automatically locate first (about 10~25 seconds), and write the target amount directly after success.";
     startLocateEconomy(app);
 }
 
@@ -3263,18 +3270,18 @@ void directModifyXp(AppState& app) {
         return;
     }
     if (app.busy.load()) {
-        app.locateStatus = "已有任务在进行，请等它结束。";
+        app.locateStatus = "A task is running. Wait for it to finish.";
         return;
     }
     int32_t target = 0;
     std::string targetError;
     if (!parseXpTarget(app.xpTarget, &target, &targetError)) {
-        app.locateStatus = "请先在「要改成的经验」里填写有效经验：" + targetError;
+        app.locateStatus = "Please fill in the valid experience in the \"Experience to be changed to\" first:" + targetError;
         return;
     }
     const std::string gate = writeGateReason(app);
     if (!gate.empty()) {
-        app.locateStatus = "已拒绝写入：" + gate;
+        app.locateStatus = "Write denied:\nWhen using" + gate;
         logLine(app.locateStatus);
         return;
     }
@@ -3284,12 +3291,12 @@ void directModifyXp(AppState& app) {
     }
     double current = 0.0;
     if (selectedGame() == GameId::Ets2 && !parseNumber(app.moneyCurrent, false, &current)) {
-        app.locateStatus = "经验地址随金钱定位一并取得：把游戏里显示的当前金额填到「游戏当前值」，"
-                           "再点「直接改经验」。";
+        app.locateStatus = "The experience address is obtained together with the money positioning: fill in the current amount displayed in the game into \"Game Current Value\"."
+                           "Click \"Change experience directly\".";
         return;
     }
     app.autoWriteXpAfterLocate = true;
-    app.locateStatus = "尚未定位：先自动定位（约 10~25 秒），成功后立即直接写入目标经验。";
+    app.locateStatus = "has not been positioned yet: automatically locate it first (about 10~25 seconds), and write the target experience directly after success.";
     startLocateEconomy(app);
 }
 
@@ -3299,14 +3306,14 @@ void directModifyXp(AppState& app) {
 // 因此一次性写入即可持久，**不需要后台锁定**。
 void writeLocatedMoney(AppState& app, bool lock) {
     if (!app.locatedMoneyAddress) {
-        app.locateStatus = "还没有定位结果：请填好当前金额后点「直接改钱」。";
+        app.locateStatus = "There is no positioning result yet: please fill in the current amount and click \"Change Money Directly\".";
         return;
     }
     int64_t money = 0;
     std::string targetError;
     if (!parseMoneyTarget(app.moneyTarget, &money, &targetError)) {
         // 目标数值越界/非法：不得清除定位结果，也不能写入
-        app.locateStatus = "未写入：" + targetError + "（定位结果保留，可修改后重试）。";
+        app.locateStatus = "is not written:" + targetError + "(The positioning result is retained and can be modified and tried again).";
         logLine(app.locateStatus);
         return;
     }
@@ -3316,42 +3323,42 @@ void writeLocatedMoney(AppState& app, bool lock) {
         if (!probeBankObject(app.mem, app.locatedMoneyAddress, &probe) ||
             probe.object != app.locatedMoneyBank) {
             clearLocatedEconomy(app);
-            app.locateStatus = "定位地址已失效（可能换过存档或重载），已清除定位结果，请重新定位。";
+            app.locateStatus = "The positioning address has expired (the archive may have been changed or reloaded), the positioning result has been cleared, please relocate.";
             return;
         }
         if (!app.freezer) {
-            app.locateStatus = "锁定器尚未就绪（请先附加游戏）。";
+            app.locateStatus = "Locker is not ready yet (please attach game first).";
             return;
         }
         const std::string gate = writeGateReason(app);
         if (!gate.empty()) {
-            app.locateStatus = "已拒绝写入：" + gate + "（定位结果保留）";
+            app.locateStatus = "Write denied:\nWhen using" + gate + "(positioning results retained)";
             logLine(app.locateStatus);
             return;
         }
         app.freezer->addInt(app.locatedMoneyAddress, VType::Int64, money);
-        app.locateStatus = fmt("已锁定金钱 = %s（可选保险：防止游戏内收支改变金额；"
-                               "一般情况用「直接改钱」即可，无需锁定）",
+        app.locateStatus = fmt("Locked money = %s (optional insurance: prevents in-game income and expenditure from changing the amount;"
+                               "Generally, you can use \"Change Money Directly\" without locking)",
                                formatInt(money).c_str());
     } else {
         std::string error;
         if (!writeBankMoneyGuarded(app, app.locatedMoneyAddress, app.locatedMoneyBank, money,
                                    &error)) {
-            if (error.find("联机保护") != std::string::npos) {
+            if (error.find("online protection") != std::string::npos) {
                 // 闸门拦截：不是地址失效，定位结果必须保留
-                app.locateStatus = "已拒绝写入：" + error + "（定位结果保留）";
-            } else if (error.find("结构校验未通过") != std::string::npos) {
+                app.locateStatus = "Write denied:\nWhen using" + error + "(positioning results retained)";
+            } else if (error.find("structure verification failed") != std::string::npos) {
                 clearLocatedEconomy(app);
-                app.locateStatus = "直接写入失败：" + error + "（定位结果已清除，请重新定位）";
+                app.locateStatus = "Direct writing failed:" + error + "(Location result has been cleared, please relocate)";
             } else {
-                app.locateStatus = "直接写入失败：" + error + "（定位结果保留，可重试）";
+                app.locateStatus = "Direct writing failed:" + error + "(The positioning result is retained and can be retried)";
             }
             logLine(app.locateStatus);
             return;
         }
         app.locatedMoneyValue = money;
-        app.locateStatus = fmt("已直接写入金钱 = %s（回读一致）。无需锁定：游戏读的就是这个"
-                               "地址，自动存档会把它写进存档。",
+        app.locateStatus = fmt("has been written directly to money = %s (readback consistent). No locking required: this is what the game reads"
+                               "address, automatic archiving will write it into the archive.",
                                formatInt(money).c_str());
     }
     logLine(app.locateStatus);
@@ -3359,15 +3366,15 @@ void writeLocatedMoney(AppState& app, bool lock) {
 
 void writeLocatedXp(AppState& app, bool lock) {
     if (!app.locatedXpAddress) {
-        app.locateStatus = "经验地址尚未定位（填好「游戏当前值」里的当前金额后点「直接改钱」，"
-                           "定位金钱时会一并定位经验）。";
+        app.locateStatus = "The experience address has not been located yet (fill in the current amount in \"Game Current Value\" and click \"Change Money Directly\"."
+                           "will also locate experience when locating money).";
         return;
     }
     int32_t xp = 0;
     std::string targetError;
     if (!parseXpTarget(app.xpTarget, &xp, &targetError)) {
         // 越界/非整数绝不先转换：定位结果保留
-        app.locateStatus = "未写入：" + targetError + "（定位结果保留，可修改后重试）。";
+        app.locateStatus = "is not written:" + targetError + "(The positioning result is retained and can be modified and tried again).";
         logLine(app.locateStatus);
         return;
     }
@@ -3377,38 +3384,38 @@ void writeLocatedXp(AppState& app, bool lock) {
         if (!probeEconomyObject(app.mem, app.locatedXpAddress, &probe) ||
             probe.object != app.locatedEconomy) {
             clearLocatedEconomy(app);
-            app.locateStatus = "经验地址已失效，已清除定位结果，请重新定位。";
+            app.locateStatus = "The experience address has expired and the positioning results have been cleared. Please relocate.";
             return;
         }
         if (!app.freezer) {
-            app.locateStatus = "锁定器尚未就绪（请先附加游戏）。";
+            app.locateStatus = "Locker is not ready yet (please attach game first).";
             return;
         }
         if (!gate.empty()) {
-            app.locateStatus = "已拒绝写入：" + gate + "（定位结果保留）";
+            app.locateStatus = "Write denied:\nWhen using" + gate + "(positioning results retained)";
             logLine(app.locateStatus);
             return;
         }
         app.freezer->addInt(app.locatedXpAddress, VType::Int32, xp);
-        app.locateStatus = fmt("已锁定经验 = %s（可选保险；一般情况用「直接改经验」即可，无需锁定）",
+        app.locateStatus = fmt("Locked experience = %s (optional insurance; generally use \"directly change experience\" without locking)",
                                formatInt(xp).c_str());
     } else {
         std::string error;
         if (!writeXpGuarded(app, app.locatedXpAddress, app.locatedEconomy, xp, &error)) {
-            if (error.find("联机保护") != std::string::npos) {
-                app.locateStatus = "已拒绝写入：" + error + "（定位结果保留）";
-            } else if (error.find("结构校验未通过") != std::string::npos) {
+            if (error.find("online protection") != std::string::npos) {
+                app.locateStatus = "Write denied:\nWhen using" + error + "(positioning results retained)";
+            } else if (error.find("structure verification failed") != std::string::npos) {
                 clearLocatedEconomy(app);
-                app.locateStatus = "直接写入失败：" + error + "（定位结果已清除，请重新定位）";
+                app.locateStatus = "Direct writing failed:" + error + "(Location result has been cleared, please relocate)";
             } else {
-                app.locateStatus = "直接写入失败：" + error + "（定位结果保留，可重试）";
+                app.locateStatus = "Direct writing failed:" + error + "(The positioning result is retained and can be retried)";
             }
             logLine(app.locateStatus);
             return;
         }
         app.locatedXpValue = xp;
-        app.locateStatus = fmt("已直接写入经验 = %s（回读一致）。无需锁定：升级与技能点会立刻结算，"
-                               "自动存档会把它写进存档。",
+        app.locateStatus = fmt("has been written directly to experience = %s (readback consistent). No locking required: upgrades and skill points are settled immediately,"
+                               "Autosave will write it into the archive.",
                                formatInt(xp).c_str());
     }
     logLine(app.locateStatus);
@@ -3416,20 +3423,20 @@ void writeLocatedXp(AppState& app, bool lock) {
 
 void renderMoneyTab(AppState& app) {
     if (!supportsVerifiedStructures(selectedGame())) {
-        ::ImGui::TextWrapped("美卡自动金钱/经验定位尚未适配。请使用下面的通用扫描，或在存档管理中修改支持的明文字段。");
-        renderValuePanel(app, PanelKind::Money, "现金（手动扫描）", "输入当前金额，变化后收窄。",
+        ::ImGui::TextWrapped("ATS automatic money/experience positioning has not been adapted yet. Please use the generic scan below, or modify the supported clear text fields in Archive Management.");
+        renderValuePanel(app, PanelKind::Money, "Cash (manual scan)", "Enter the current amount and narrow it after change.",
                          &app.moneyType, app.moneyCurrent, app.moneyTarget, &app.moneyLock);
-        renderValuePanel(app, PanelKind::Xp, "经验（手动扫描）", "输入当前经验，变化后收窄。",
+        renderValuePanel(app, PanelKind::Xp, "experience (manual scan)", "Enter the current experience and narrow it after change.",
                          &app.xpType, app.xpCurrent, app.xpTarget, &app.xpLock);
         return;
     }
     const bool inputsLocked = app.busy.load();
     if (!app.locatedMoneyAddress && selectedGame() == GameId::Ets2) {
-        ui::beginCard("##economy_seed", "首次定位");
-        ui::text(ui::muted, "填写游戏里显示的当前金额，随后应用目标资金或经验。首次定位约需 10–25 秒。");
+        ui::beginCard("##economy_seed", "first positioning");
+        ui::text(ui::muted, "Fill in the current amount displayed in the game, and then apply the target funds or experience. First fix takes approximately 10–25 seconds.");
         ::ImGui::BeginDisabled(inputsLocked);
         ::ImGui::SetNextItemWidth(std::min(340.0f, ::ImGui::GetContentRegionAvail().x));
-        ::ImGui::InputTextWithHint("##current", "游戏当前金额", app.moneyCurrent, 32,
+        ::ImGui::InputTextWithHint("##current", "Game current amount", app.moneyCurrent, 32,
             ImGuiInputTextFlags_CharsDecimal);
         ::ImGui::EndDisabled();
         ui::endCard();
@@ -3438,18 +3445,18 @@ void renderMoneyTab(AppState& app) {
     const int columns = ::ImGui::GetContentRegionAvail().x >= 760 ? 2 : 1;
     if (::ImGui::BeginTable("##economy_cards", columns, ImGuiTableFlags_SizingStretchSame)) {
         ::ImGui::TableNextColumn();
-        ui::beginCard("##money_card", "账户资金");
+        ui::beginCard("##money_card", "account funds");
         ui::heading(app.locatedMoneyAddress ? formatInt(app.locatedMoneyValue).c_str() : "—", 30);
-        ::ImGui::TextDisabled(app.locatedMoneyAddress ? "已定位金额" : "等待定位");
+        ::ImGui::TextDisabled(app.locatedMoneyAddress ? "Positioned amount" : "waiting for positioning");
         ::ImGui::Spacing();
-        ::ImGui::TextUnformatted("目标金额");
+        ::ImGui::TextUnformatted("target amount");
         ::ImGui::BeginDisabled(inputsLocked);
         ::ImGui::SetNextItemWidth(-1);
-        ::ImGui::InputTextWithHint("##target_money", "输入目标金额", app.moneyTarget, 32,
+        ::ImGui::InputTextWithHint("##target_money", "Enter target amount", app.moneyTarget, 32,
             ImGuiInputTextFlags_CharsDecimal);
-        if (ui::primaryButton("应用目标金额")) directModifyMoney(app);
+        if (ui::primaryButton("Application target amount")) directModifyMoney(app);
         ::ImGui::Spacing();
-        if (::ImGui::Button("+100万")) {
+        if (::ImGui::Button("+1 million")) {
             double cur = 0;
             parseNumber(app.moneyTarget, false, &cur);
             if (cur <= 0) parseNumber(app.moneyCurrent, false, &cur);
@@ -3457,33 +3464,33 @@ void renderMoneyTab(AppState& app) {
             ::snprintf(buf, sizeof(buf), "%.0f", cur + 1000000.0);
             ::strncpy_s(app.moneyTarget, 32, buf, _TRUNCATE);
         }
-        ui::nextButton("1,000 万");
-        if (::ImGui::Button("1,000 万")) ::strncpy_s(app.moneyTarget, 32, "10000000", _TRUNCATE);
-        ui::nextButton("5,000 万");
-        if (::ImGui::Button("5,000 万")) ::strncpy_s(app.moneyTarget, 32, "50000000", _TRUNCATE);
-        ui::nextButton("1 亿");
-        if (::ImGui::Button("1 亿")) ::strncpy_s(app.moneyTarget, 32, "100000000", _TRUNCATE);
-        ui::nextButton("9.99 亿");
-        if (::ImGui::Button("9.99 亿")) ::strncpy_s(app.moneyTarget, 32, "999999999", _TRUNCATE);
+        ui::nextButton("10 million");
+        if (::ImGui::Button("10 million")) ::strncpy_s(app.moneyTarget, 32, "10000000", _TRUNCATE);
+        ui::nextButton("50 million");
+        if (::ImGui::Button("50 million")) ::strncpy_s(app.moneyTarget, 32, "50000000", _TRUNCATE);
+        ui::nextButton("100 million");
+        if (::ImGui::Button("100 million")) ::strncpy_s(app.moneyTarget, 32, "100000000", _TRUNCATE);
+        ui::nextButton("999 million");
+        if (::ImGui::Button("999 million")) ::strncpy_s(app.moneyTarget, 32, "999999999", _TRUNCATE);
         ::ImGui::EndDisabled();
         ui::endCard();
         ::ImGui::TableNextColumn();
-        ui::beginCard("##xp_card", "驾驶经验");
+        ui::beginCard("##xp_card", "driving experience");
         ui::heading(app.locatedXpAddress ? formatInt(app.locatedXpValue).c_str() : "—", 30);
-        ::ImGui::TextDisabled("XP / 随资金一并定位");
+        ::ImGui::TextDisabled("XP / Positioned together with funds");
         ::ImGui::Spacing();
-        ::ImGui::TextUnformatted("目标经验");
+        ::ImGui::TextUnformatted("Target Experience");
         ::ImGui::BeginDisabled(app.busy.load());
         ::ImGui::SetNextItemWidth(-1);
-        ::ImGui::InputTextWithHint("##target_xp", "输入目标经验", app.xpTarget, 32,
+        ::ImGui::InputTextWithHint("##target_xp", "Enter target experience", app.xpTarget, 32,
             ImGuiInputTextFlags_CharsDecimal);
-        if (ui::primaryButton("应用目标经验")) directModifyXp(app);
+        if (ui::primaryButton("application target experience")) directModifyXp(app);
         ::ImGui::Spacing();
-        if (::ImGui::Button("5,000 / 约10级")) ::strncpy_s(app.xpTarget, 32, "5000", _TRUNCATE);
-        ui::nextButton("50,000 / 约35级");
-        if (::ImGui::Button("50,000 / 约35级")) ::strncpy_s(app.xpTarget, 32, "50000", _TRUNCATE);
-        ui::nextButton("150,000 / 满级技能");
-        if (::ImGui::Button("150,000 / 满级技能")) ::strncpy_s(app.xpTarget, 32, "150000", _TRUNCATE);
+        if (::ImGui::Button("5,000 / about level 10")) ::strncpy_s(app.xpTarget, 32, "5000", _TRUNCATE);
+        ui::nextButton("50,000 / about level 35");
+        if (::ImGui::Button("50,000 / about level 35")) ::strncpy_s(app.xpTarget, 32, "50000", _TRUNCATE);
+        ui::nextButton("150,000 / full level skill");
+        if (::ImGui::Button("150,000 / full level skill")) ::strncpy_s(app.xpTarget, 32, "150000", _TRUNCATE);
         ui::nextButton("1,000,000");
         if (::ImGui::Button("1,000,000")) ::strncpy_s(app.xpTarget, 32, "1000000", _TRUNCATE);
         ::ImGui::EndDisabled();
@@ -3491,12 +3498,12 @@ void renderMoneyTab(AppState& app) {
         ::ImGui::EndTable();
     }
     ::ImGui::Spacing();
-    ui::beginCard("##locate_economy", "定位与操作状态");
+    ui::beginCard("##locate_economy", "positioning and operating status");
     const bool hasMoney = app.locatedMoneyAddress != 0;
     const bool hasXp = app.locatedXpAddress != 0;
     if (hasMoney) {
         ui::textf(ImVec4(0.40f, 0.85f, 0.55f, 1.0f),
-                             "金钱 0x%llX = %s", (unsigned long long)app.locatedMoneyAddress,
+                             "Money 0x%llX = %s", (unsigned long long)app.locatedMoneyAddress,
                              formatInt(app.locatedMoneyValue).c_str());
         if (!app.locatedMoneyDetail.empty()) {
             ui::textf(ui::muted, "%s",
@@ -3505,7 +3512,7 @@ void renderMoneyTab(AppState& app) {
     }
     if (hasXp) {
         ui::textf(ImVec4(0.40f, 0.85f, 0.55f, 1.0f),
-                             "经验 0x%llX = %s", (unsigned long long)app.locatedXpAddress,
+                             "experience 0x%llX = %s", (unsigned long long)app.locatedXpAddress,
                              formatInt(app.locatedXpValue).c_str());
         if (!app.locatedXpDetail.empty()) {
             ui::textf(ui::muted, "%s",
@@ -3516,29 +3523,29 @@ void renderMoneyTab(AppState& app) {
 
     // 可选保险：锁定（一般不需要）。直接写权威地址后游戏不会改回去；
     // 只有想「钉死」数值不受游戏内收支影响时才用。
-    if (ImGui::CollapsingHeader("可选：锁定保险（一般不需要）")) {
+    if (ImGui::CollapsingHeader("Optional: locking insurance (generally not required)")) {
         ::ImGui::BeginDisabled(app.busy.load() || !hasMoney);
-        if (::ImGui::Button(" 锁定金钱 ", ImVec2(110, 0))) writeLocatedMoney(app, true);
+        if (::ImGui::Button(" Lock money ", ImVec2(110, 0))) writeLocatedMoney(app, true);
         ::ImGui::EndDisabled();
         ::ImGui::SameLine();
         ::ImGui::BeginDisabled(app.busy.load() || !hasXp);
-        if (::ImGui::Button(" 锁定经验 ", ImVec2(110, 0))) writeLocatedXp(app, true);
+        if (::ImGui::Button(" lock experience ", ImVec2(110, 0))) writeLocatedXp(app, true);
         ::ImGui::EndDisabled();
         ::ImGui::SameLine();
-        if (::ImGui::Button(" 解除锁定 ", ImVec2(100, 0))) {
+        if (::ImGui::Button(" Unlock ", ImVec2(100, 0))) {
             if (app.freezer) {
                 if (app.locatedMoneyAddress) app.freezer->remove(app.locatedMoneyAddress);
                 if (app.locatedXpAddress) app.freezer->remove(app.locatedXpAddress);
             }
-            app.locateStatus = "已解除金钱/经验锁定（直接写入的数值不受影响）。";
+            app.locateStatus = "The money/experience lock has been unlocked (values written directly are not affected).";
         }
         ui::textf(ui::muted,
-                             "锁定 = 每 0.25 秒把数值写回一次，用来抵消游戏内真实的收支变化。"
-                             "只是可选项，直接修改本身不需要它。");
+                             "Lock = Write the value back every 0.25 seconds to offset the real changes in the income and expenditure in the game."
+                             "is only optional and is not required for direct modification itself.");
         if (app.freezer && app.freezer->blocked() > 0) {
             ui::textf(ImVec4(0.95f, 0.40f, 0.40f, 1.0f),
-                                 "锁定写入已被联机闸门拦截 %llu 次：%s（解锁条目仍保留，"
-                                 "退出联机后自动恢复写入）",
+                                 "Locked writes have been intercepted by the online gate %llu times: %s (unlocked entries remain,"
+                                 "automatically resumes writing after exiting online)",
                                  (unsigned long long)app.freezer->blocked(),
                                  app.freezer->blockedReason().c_str());
         }
@@ -3548,31 +3555,31 @@ void renderMoneyTab(AppState& app) {
     ::ImGui::Spacing();
 
     // ---------------- 兼容保留：重新定位 / 清除 ----------------
-    if (ImGui::CollapsingHeader("维护：重新定位 / 清除（换存档或读档后用）")) {
+    if (ImGui::CollapsingHeader("Maintenance: Relocation/Clear (for use after changing archives or loading files)")) {
         ::ImGui::BeginDisabled(app.busy.load());
-        if (::ImGui::Button(" 仅重新定位（不写入） ", ImVec2(170, 26))) startLocateEconomy(app);
+        if (::ImGui::Button(" Relocation only (not writing) ", ImVec2(170, 26))) startLocateEconomy(app);
         ::ImGui::SameLine();
-        if (::ImGui::Button(" 清除定位结果 ", ImVec2(140, 26))) clearLocatedEconomy(app);
+        if (::ImGui::Button(" Clear positioning results ", ImVec2(140, 26))) clearLocatedEconomy(app);
         ::ImGui::EndDisabled();
         ui::textf(ui::muted,
-                             "定位地址绑定当前进程：换存档、读档或重启游戏后，直接写入前会自动"
-                             "重新校验结构，失效时会提示重新定位。");
+                             "The positioning address is bound to the current process: after changing the archive, reading the file or restarting the game, it will automatically be written before directly writing."
+                             "rechecks the structure and will prompt for relocation when it fails.");
     }
 
     ::ImGui::Spacing();
 
     // ---------------- 高级：手动扫描（兼容性排查用） ----------------
-    if (ImGui::CollapsingHeader("高级：手动扫描收窄（兼容性排查用，一般不需要）")) {
-        ::ImGui::TextWrapped("Cheat Engine 式全内存扫描：只在直接修改定位失败时用于排查。"
-                             "注意扫描命中可能包含镜像副本，写错副本会被游戏改回去（这正是"
-                             "老版本需要「锁定」的原因）。");
+    if (ImGui::CollapsingHeader("Advanced: Manual scanning and narrowing (for compatibility check, generally not needed)")) {
+        ::ImGui::TextWrapped("Cheat Engine-style full memory scan: only used for troubleshooting when direct modification and positioning fails."
+                             "Note that the scan hit may contain a mirror copy, and the wrong copy will be changed back by the game (this is"
+                             "The reason why the old version needs to be \"locked\").");
         ::ImGui::Spacing();
-        renderValuePanel(app, PanelKind::Money, "现金（钱）",
-                         "填游戏里的现金 → 首次扫描；金额变化后填新值 → 变动后收窄。",
+        renderValuePanel(app, PanelKind::Money, "Cash (money)",
+                         "Fill in the cash in the game → Scan for the first time; fill in the new value after the amount changes → Narrow after the change.",
                          &app.moneyType, app.moneyCurrent, app.moneyTarget, &app.moneyLock);
         ::ImGui::Spacing();
-        renderValuePanel(app, PanelKind::Xp, "经验值",
-                         "32 位整数；改动会连带升级并给技能点。",
+        renderValuePanel(app, PanelKind::Xp, "experience value",
+                         "32-bit integer; changes will also upgrade and give skill points.",
                          &app.xpType, app.xpCurrent, app.xpTarget, &app.xpLock);
     }
 }
@@ -3607,30 +3614,30 @@ void renderVehicleTabImpl(AppState& app) {
     ui::beginCard("##vehicle_metrics");
     if (::ImGui::BeginTable("##metrics", 3, ImGuiTableFlags_SizingStretchSame)) {
         ::ImGui::TableNextColumn();
-        ::ImGui::TextDisabled("剩余燃油 / 电量");
+        ::ImGui::TextDisabled("Remaining fuel / battery");
         ui::heading(telemetry ? fmt("%.1f%%", 100.0f * std::clamp(app.telemetry.fuel / app.telemetry.fuelCapacity, 0.0f, 1.0f)).c_str() : "—", 29);
-        ::ImGui::TextDisabled(telemetry ? fmt("游戏能量值 %.0f / %.0f", app.telemetry.fuel, app.telemetry.fuelCapacity).c_str() : "等待游戏遥测");
+        ::ImGui::TextDisabled(telemetry ? fmt("game energy value %.0f / %.0f", app.telemetry.fuel, app.telemetry.fuelCapacity).c_str() : "Waiting for game telemetry");
         if (telemetry && app.telemetry.fuelCapacity > 0)
             ::ImGui::ProgressBar(std::clamp(app.telemetry.fuel / app.telemetry.fuelCapacity, 0.0f, 1.0f), ImVec2(-1, 4), "");
         ::ImGui::TableNextColumn();
-        ::ImGui::TextDisabled("最大部件磨损");
+        ::ImGui::TextDisabled("Maximum component wear");
         const float wear = *std::max_element(app.telemetry.wear.begin(), app.telemetry.wear.end());
         ui::heading(telemetry ? fmt("%.1f%%", wear * 100).c_str() : "—", 29);
-        ::ImGui::TextDisabled(telemetry ? "发动机 / 变速箱 / 车身 / 车轮" : "未读取到有效车辆状态");
+        ::ImGui::TextDisabled(telemetry ? "engine/gearbox/body/wheel" : "No valid vehicle data");
         ::ImGui::TableNextColumn();
-        ::ImGui::TextDisabled("当前动力倍率");
+        ::ImGui::TextDisabled("Current power multiplier");
         ui::heading(fmt("%.2f ×", kEngineScales[std::clamp(app.enginePowerOption, 0, 3)]).c_str(), 29);
-        ::ImGui::TextDisabled(app.enginePowerOption == 0 ? "原厂基准" : "后台保持中");
+        ::ImGui::TextDisabled(app.enginePowerOption == 0 ? "Stock baseline" : "Maintained in background");
         ::ImGui::EndTable();
     }
     ui::endCard();
     ::ImGui::Spacing();
     if (!supportsVerifiedStructures(selectedGame())) {
         ui::text(ui::accent, structuralWriteBlockReason().c_str());
-        if (::ImGui::CollapsingHeader("手动油量和损伤扫描")) {
-            renderValuePanel(app, PanelKind::Fuel, "油量（手动扫描）", "扫描后根据游戏变化继续收窄。",
+        if (::ImGui::CollapsingHeader("Manual fuel level and damage scan")) {
+            renderValuePanel(app, PanelKind::Fuel, "fuel level (manual scan)", "continues to narrow according to game changes after scanning.",
                 &app.fuelType, app.fuelCurrent, app.fuelTarget, &app.fuelLock);
-            renderValuePanel(app, PanelKind::Damage, "损伤（手动扫描）", "确认类型及地址后再写入。",
+            renderValuePanel(app, PanelKind::Damage, "damage (manual scan)", "Confirm the type and address before writing.",
                 &app.damageType, app.damageCurrent, app.damageTarget, &app.damageLock);
         }
         return;
@@ -3638,25 +3645,25 @@ void renderVehicleTabImpl(AppState& app) {
     const int columns = ::ImGui::GetContentRegionAvail().x >= 820 ? 2 : 1;
     if (::ImGui::BeginTable("##vehicle_controls", columns, ImGuiTableFlags_SizingStretchSame)) {
         ::ImGui::TableNextColumn();
-        ui::beginCard("##engine_power", "动力调校");
-        ::ImGui::TextDisabled("目标倍率 / 应用后生效");
+        ui::beginCard("##engine_power", "Engine tuning");
+        ::ImGui::TextDisabled("Target multiplier / click Apply to activate");
         ui::heading(fmt("%.2f ×", kEngineScales[std::clamp(app.engineDraftOption, 0, 3)]).c_str(), 36);
         ::ImGui::SetNextItemWidth(-1);
         ::ImGui::SliderInt("##power_draft", &app.engineDraftOption, 0, 3, "", ImGuiSliderFlags_NoInput);
-        static const char* presets[] = {"原厂", "1.25×", "1.50×", "2.00×"};
+        static const char* presets[] = {"Stock", "1.25×", "1.50×", "2.00×"};
         for (int i = 0; i < 4; ++i) {
             if (i) ui::nextButton(presets[i]);
             if (ui::choice(presets[i], app.engineDraftOption == i)) app.engineDraftOption = i;
         }
         ::ImGui::Spacing();
-        ::ImGui::Checkbox("转速上限 +10%", &app.engineDraftRaiseLimit);
+        ::ImGui::Checkbox("RPM limit +10%", &app.engineDraftRaiseLimit);
         ::ImGui::Spacing();
-        if (ui::primaryButton("应用调校")) {
+        if (ui::primaryButton("Apply tuning")) {
             applyEnginePower(app, app.engineDraftOption, app.engineDraftRaiseLimit);
             app.engineDraftSourceOption = -1;
         }
-        ui::nextButton("恢复原厂");
-        if (::ImGui::Button("恢复原厂")) {
+        ui::nextButton("Restore stock");
+        if (::ImGui::Button("Restore stock")) {
             applyEnginePower(app, 0, false);
             app.engineDraftSourceOption = -1;
         }
@@ -3664,16 +3671,16 @@ void renderVehicleTabImpl(AppState& app) {
         ui::text(ui::muted, app.engineStatus.c_str());
         if (app.engineTuner) {
         // 如实区分恢复记录状态：修改仍存在 / 尚未核对 / 对象已明确失效 / 已确认恢复
-        const char* recordState = "已确认恢复（无待恢复记录）";
+        const char* recordState = "Recovery confirmed (no record to be recovered)";
         ImVec4 recordColor(0.45f, 0.85f, 0.60f, 1.0f);
         if (app.engineTuner->hasUnverifiedImportedRecord()) {
-            recordState = "上次运行的恢复记录尚未核对（已保留；不会把放大值当原厂值）";
+            recordState = "The recovery record of the last run has not been checked (retained; the amplification value will not be regarded as the original factory value)";
             recordColor = ImVec4(0.95f, 0.75f, 0.30f, 1.0f);
         } else if (app.engineTuner->active()) {
-            recordState = "修改仍存在（后台保持中）";
+            recordState = "modification still exists (maintained in the background)";
             recordColor = ImVec4(0.95f, 0.55f, 0.35f, 1.0f);
         } else if (app.engineTuner->hasInvalidatedRecord()) {
-            recordState = "对象已明确失效（数值与本程序记录不符，记录已丢弃且未写入）";
+            recordState = "The object has clearly expired (the value does not match the record of this program, the record has been discarded and has not been written)";
             recordColor = ImVec4(0.95f, 0.45f, 0.45f, 1.0f);
         }
         ui::text(recordColor, recordState);
@@ -3681,28 +3688,28 @@ void renderVehicleTabImpl(AppState& app) {
 
         ui::endCard();
         ::ImGui::TableNextColumn();
-        ui::beginCard("##auto_vehicle", "行驶辅助");
+        ui::beginCard("##auto_vehicle", "Driving assists");
         bool fuel = app.autoFuelLock;
-        if (::ImGui::Checkbox("无限油量", &fuel)) toggleAutoVehicleLock(app, true, fuel);
+        if (::ImGui::Checkbox("Unlimited fuel", &fuel)) toggleAutoVehicleLock(app, true, fuel);
         ui::text(ui::muted, app.fuelStatus.c_str());
         ::ImGui::Spacing();
         bool electric = app.autoElectricLock;
-        if (::ImGui::Checkbox("无限电量", &electric)) toggleAutoVehicleLock(app, true, electric, true);
+        if (::ImGui::Checkbox("Unlimited battery", &electric)) toggleAutoVehicleLock(app, true, electric, true);
         ui::text(ui::muted, app.electricStatus.c_str());
-        ::ImGui::TextWrapped("电动车使用；与无限油量互斥。Ctrl+F6 可切换。");
+        ::ImGui::TextWrapped("Used by electric vehicles; mutually exclusive with unlimited fuel capacity. Ctrl+F6 to switch.");
         ::ImGui::Spacing();
         ::ImGui::Separator();
         ::ImGui::Spacing();
         bool damage = app.autoDamageLock;
-        if (::ImGui::Checkbox("车辆无损", &damage)) toggleAutoVehicleLock(app, false, damage);
+        if (::ImGui::Checkbox("Prevent damage", &damage)) toggleAutoVehicleLock(app, false, damage);
         ui::text(ui::muted, app.damageStatus.c_str());
         ::ImGui::Spacing();
-        if (::ImGui::Button("全部开启")) {
+        if (::ImGui::Button("Enable all")) {
             if (!app.autoFuelLock && !app.autoElectricLock) toggleAutoVehicleLock(app, true, true);
             if (!app.autoDamageLock) toggleAutoVehicleLock(app, false, true);
         }
-        ui::nextButton("全部关闭");
-        if (::ImGui::Button("全部关闭")) {
+        ui::nextButton("Disable all");
+        if (::ImGui::Button("Disable all")) {
             if (app.autoFuelLock) toggleAutoVehicleLock(app, true, false);
             if (app.autoElectricLock) toggleAutoVehicleLock(app, true, false, true);
             if (app.autoDamageLock) toggleAutoVehicleLock(app, false, false);
@@ -3712,46 +3719,46 @@ void renderVehicleTabImpl(AppState& app) {
         ui::text(ui::muted, multiplayerSummary().c_str());
         if (!app.mpDetail.empty()) ui::text(app.mpBlocks ? ui::accent : ui::muted, app.mpDetail.c_str());
         if (!telemetry && attached) {
-            if (::ImGui::CollapsingHeader("遥测状态")) ui::text(ui::muted, app.telemetryError.c_str());
+            if (::ImGui::CollapsingHeader("telemetry status")) ui::text(ui::muted, app.telemetryError.c_str());
         }
         ui::endCard();
         ::ImGui::EndTable();
     }
     ::ImGui::Spacing();
-    if (::ImGui::CollapsingHeader("高级：手动扫描（兼容性排查用）")) {
-        ::ImGui::TextWrapped("全内存扫描会明显增加游戏内存压力，建议先存档。");
-        renderValuePanel(app, PanelKind::Fuel, "手动油量扫描", "仅供兼容性排查。",
+    if (::ImGui::CollapsingHeader("Advanced: Manual Scan (for compatibility check)")) {
+        ::ImGui::TextWrapped("Full memory scan will significantly increase the game memory pressure, so it is recommended to save the game first.");
+        renderValuePanel(app, PanelKind::Fuel, "Manual fuel level scan", "is for compatibility check only.",
             &app.fuelType, app.fuelCurrent, app.fuelTarget, &app.fuelLock);
         ::ImGui::Spacing();
-        renderValuePanel(app, PanelKind::Damage, "手动损坏扫描", "仅供兼容性排查。",
+        renderValuePanel(app, PanelKind::Damage, "Manual damage scan", "is for compatibility check only.",
             &app.damageType, app.damageCurrent, app.damageTarget, &app.damageLock);
     }
 }
 
 void renderScannerTabImpl(AppState& app) {
-    ui::beginCard("##scanner_workspace", "数值扫描与结果");
-    ::ImGui::TextWrapped("%s", "类型");
+    ui::beginCard("##scanner_workspace", "numerical scan and results");
+    ::ImGui::TextWrapped("%s", "type");
     ui::next(220);
     typeCombo("##stype", &app.scanType);
     if (vtypeInfo(app.scanType).isFloat) {
         ui::next(220);
-        ::ImGui::TextWrapped("%s", "  容差");
+        ::ImGui::TextWrapped("%s", " tolerance");
         ui::next(220);
         ::ImGui::SetNextItemWidth(80);
         ::ImGui::InputText("##stolerance", app.scanTolerance, sizeof(app.scanTolerance),
                            ImGuiInputTextFlags_CharsDecimal);
     }
     ui::next(220);
-    ::ImGui::TextWrapped("%s", "  数值");
+    ::ImGui::TextWrapped("%s", " value");
     ui::next(220);
     ::ImGui::SetNextItemWidth(160);
     ::ImGui::InputText("##svalue", app.scanValue, 32, ImGuiInputTextFlags_CharsDecimal);
     ui::next(220);
     ::ImGui::BeginDisabled(app.busy.load());
-    if (ui::primaryButton("首次扫描", ImVec2(110, 0))) startFirstScan(app, PanelKind::Scanner);
+    if (ui::primaryButton("first scan", ImVec2(110, 0))) startFirstScan(app, PanelKind::Scanner);
     ::ImGui::EndDisabled();
     ui::next(220);
-    ::ImGui::TextWrapped("%s", "对齐");
+    ::ImGui::TextWrapped("%s", "Alignment");
     ui::next(220);
     {
         int alignIndex = 2;
@@ -3764,42 +3771,42 @@ void renderScannerTabImpl(AppState& app) {
         }
     }
     ui::next(220);
-    ::ImGui::Checkbox("含超大内存区(慢很多)", &app.scanIncludeBig);
+    ::ImGui::Checkbox("contains a large memory area (much slower)", &app.scanIncludeBig);
 
     ::ImGui::Spacing();
-    ::ImGui::TextWrapped("%s", "再次扫描：");
+    ::ImGui::TextWrapped("%s", "Scan again:");
     ui::next(220);
     ::ImGui::BeginDisabled(app.busy.load());
-    if (::ImGui::Button("等于新数值", ImVec2(100, 0))) {
+    if (::ImGui::Button("is equal to the new value", ImVec2(100, 0))) {
         startNextScan(app, PanelKind::Scanner, ScanMode::Exact);
     }
     ui::next(220);
-    if (::ImGui::Button("数值变了", ImVec2(90, 0))) {
+    if (::ImGui::Button("value changed", ImVec2(90, 0))) {
         startNextScan(app, PanelKind::Scanner, ScanMode::Changed);
     }
     ui::next(220);
-    if (::ImGui::Button("数值没变", ImVec2(90, 0))) {
+    if (::ImGui::Button("value has not changed", ImVec2(90, 0))) {
         startNextScan(app, PanelKind::Scanner, ScanMode::Unchanged);
     }
     ui::next(220);
-    if (::ImGui::Button("变大了", ImVec2(80, 0))) {
+    if (::ImGui::Button("gets bigger", ImVec2(80, 0))) {
         startNextScan(app, PanelKind::Scanner, ScanMode::Increased);
     }
     ui::next(220);
-    if (::ImGui::Button("变小了", ImVec2(80, 0))) {
+    if (::ImGui::Button("becomes smaller", ImVec2(80, 0))) {
         startNextScan(app, PanelKind::Scanner, ScanMode::Decreased);
     }
     ::ImGui::EndDisabled();
 
     // --- 扫描器：写入行与结果表格 ---
     ::ImGui::Spacing();
-    ::ImGui::TextWrapped("%s", "写入值");
+    ::ImGui::TextWrapped("%s", "write value");
     ui::next(220);
     ::ImGui::SetNextItemWidth(160);
     ::ImGui::InputText("##snvalue", app.scanNewValue, 32, ImGuiInputTextFlags_CharsDecimal);
     ui::next(220);
     ::ImGui::BeginDisabled(app.busy.load());
-    if (::ImGui::Button("写入选中行", ImVec2(120, 0))) {
+    if (::ImGui::Button("Write selected row", ImVec2(120, 0))) {
         ScanSession* session = app.scanSession.get();
         double value = 0;
         if (session && !session->empty() && !app.scanSelection.empty() &&
@@ -3813,15 +3820,15 @@ void renderScannerTabImpl(AppState& app) {
                                   : app.mem.writeInt(addr, session->type(), (int64_t)value);
                 if (ok) ++written;
             }
-            app.scanStatus = fmt("已写入选中 %d 行中的 %d 行 = %s",
+            app.scanStatus = fmt("has been written to row %d in selected row %d = %s",
                                  (int)app.scanSelection.size(), written, app.scanNewValue);
             logLine(app.scanStatus);
         } else {
-            app.scanStatus = "请先扫描、选中行，并填写写入值";
+            app.scanStatus = "Please scan and select the row first, and fill in the write value";
         }
     }
     ui::next(220);
-    if (::ImGui::Button("锁定选中行", ImVec2(120, 0))) {
+    if (::ImGui::Button("Lock selected row", ImVec2(120, 0))) {
         ScanSession* session = app.scanSession.get();
         double value = 0;
         if (session && !session->empty() && !app.scanSelection.empty() && app.freezer &&
@@ -3832,14 +3839,14 @@ void renderScannerTabImpl(AppState& app) {
                 app.freezer->add(session->addresses()[(size_t)idx], session->type(), value);
                 ++n;
             }
-            app.scanStatus = fmt("已锁定 %d 行 = %s", n, app.scanNewValue);
+            app.scanStatus = fmt("Row %d locked = %s", n, app.scanNewValue);
             logLine(app.scanStatus);
         } else {
-            app.scanStatus = "请先扫描、选中行，并填写要锁定的数值";
+            app.scanStatus = "Please scan and select the row first, and fill in the value to be locked.";
         }
     }
     ui::next(220);
-    if (::ImGui::Button("选中行全选/清空", ImVec2(150, 0))) {
+    if (::ImGui::Button("Select all rows/clear", ImVec2(150, 0))) {
         ScanSession* session = app.scanSession.get();
         if (session) {
             if (app.scanSelection.empty()) {
@@ -3852,13 +3859,13 @@ void renderScannerTabImpl(AppState& app) {
     }
     ::ImGui::EndDisabled();
     ui::next(220);
-    if (::ImGui::Button("全部解锁", ImVec2(100, 0))) {
+    if (::ImGui::Button("All unlocked", ImVec2(100, 0))) {
         if (app.freezer) app.freezer->clear();
         app.moneyLock = false;
         app.xpLock = false;
         app.fuelLock = false;
         app.damageLock = false;
-        app.scanStatus = "已解除全部锁定";
+        app.scanStatus = "All locks have been unlocked";
         logLine(app.scanStatus);
     }
     ui::next(220);
@@ -3873,9 +3880,9 @@ void renderScannerTabImpl(AppState& app) {
                                 ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                     ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit,
                                 ImVec2(0, 260))) {
-            ::ImGui::TableSetupColumn("内存地址", ImGuiTableColumnFlags_WidthFixed, 190);
-            ::ImGui::TableSetupColumn("当前值", ImGuiTableColumnFlags_WidthFixed, 170);
-            ::ImGui::TableSetupColumn("上一次的值", ImGuiTableColumnFlags_WidthFixed, 170);
+            ::ImGui::TableSetupColumn("memory address", ImGuiTableColumnFlags_WidthFixed, 190);
+            ::ImGui::TableSetupColumn("current value", ImGuiTableColumnFlags_WidthFixed, 170);
+            ::ImGui::TableSetupColumn("last value", ImGuiTableColumnFlags_WidthFixed, 170);
             ::ImGui::TableHeadersRow();
             for (const auto& row : rows) {
                 const uint64_t addr = std::get<0>(row);
@@ -3899,7 +3906,7 @@ void renderScannerTabImpl(AppState& app) {
             }
             ::ImGui::EndTable();
         }
-        ::ImGui::Text("共 %llu 处候选地址（表格显示前 500 处）",
+        ::ImGui::Text("Total %llu candidate addresses (the table shows the first 500 addresses)",
                       (unsigned long long)session->count());
     }
     ui::endCard();
@@ -3930,7 +3937,7 @@ std::string sanitizeTeleportTarget(const std::string& text) {
 void loadMapCities(AppState& app) {
     if (app.slots.empty()) app.slots = listSlots();
     if (app.slots.empty()) {
-        app.teleportNote = "没有找到存档，无法读取城市列表。";
+        app.teleportNote = "Archive not found, city list cannot be read.";
         return;
     }
     const int index = (app.selectedSlot >= 0 && app.selectedSlot < (int)app.slots.size())
@@ -3940,13 +3947,13 @@ void loadMapCities(AppState& app) {
     std::vector<std::string> cities;
     std::string error;
     if (!listMapCities(slot.gameSii, &cities, &error)) {
-        app.teleportNote = "读取城市列表失败：" + error;
+        app.teleportNote = "Failed to read city list:" + error;
         logLine(app.teleportNote);
         return;
     }
     app.mapCities = std::move(cities);
     app.mapCitySelected = app.mapCities.empty() ? -1 : 0;
-    app.teleportNote = fmt("已从「%s」读到 %d 个城市内部名（来自存档里的仓库单位名）。",
+    app.teleportNote = fmt("Read cities from %s: %d internal names (from garage units in the save).",
                            slot.label.c_str(), (int)app.mapCities.size());
     logLine(app.teleportNote);
 }
@@ -3954,10 +3961,10 @@ void loadMapCities(AppState& app) {
 void teleportTo(AppState& app, const std::string& target) {
     const std::string clean = sanitizeTeleportTarget(target);
     if (clean.empty()) {
-        app.teleportNote = "请先填写城市名或坐标（坐标格式 X;Y;Z，可带 ;A;E）。";
+        app.teleportNote = "Please fill in the city name or coordinates first (coordinate format X;Y;Z, with ;A;E).";
         return;
     }
-    app.teleportNote = "已发送传送命令：goto " + clean;
+    app.teleportNote = "Transmission command sent: goto " + clean;
     logLine(app.teleportNote);
     sendConsole(app, "goto " + clean);
 }
@@ -3971,13 +3978,13 @@ void saveTeleportSpot(AppState& app) {
         target = app.mapCities[(size_t)app.mapCitySelected];
     }
     if (name.empty() || target.empty()) {
-        app.teleportNote = "收藏需要一个名字和一个目标（城市名或坐标）。";
+        app.teleportNote = "Collection requires a name and a target (city name or coordinates).";
         return;
     }
     app.teleportSpots.emplace_back(name, target);
     app.spotName[0] = 0;
     saveSettings(app);
-    app.teleportNote = fmt("已收藏「%s」→ %s", name.c_str(), target.c_str());
+    app.teleportNote = fmt("has collected \"%s\" → %s", name.c_str(), target.c_str());
     logLine(app.teleportNote);
 }
 
@@ -3990,17 +3997,17 @@ void removeTeleportSpot(AppState& app, int index) {
 namespace {
 
 void renderTeleportSection(AppState& app) {
-    if (!::ImGui::CollapsingHeader("地图传送（控制台 goto）", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    if (!::ImGui::CollapsingHeader("map transfer (console goto)", ImGuiTreeNodeFlags_DefaultOpen)) return;
     ui::textf(ImVec4(1.0f, 0.85f, 0.45f, 1.0f),
-                         "传送只移动相机；调好高度后按 Ctrl+F9 把卡车落到该处。");
+                         "Teleport only moves the camera; after adjusting the height, press Ctrl+F9 to drop the truck there.");
     ::ImGui::Spacing();
 
-    if (::ImGui::Button("读取城市列表（解密存档）", ImVec2(200, 0))) loadMapCities(app);
+    if (::ImGui::Button("Read city list (decrypted archive)", ImVec2(200, 0))) loadMapCities(app);
     ui::next(220);
     ::ImGui::SetNextItemWidth(140);
-    ::ImGui::InputTextWithHint("##cityfilter", "筛选城市名", app.cityFilter, sizeof(app.cityFilter));
+    ::ImGui::InputTextWithHint("##cityfilter", "Filter city name", app.cityFilter, sizeof(app.cityFilter));
     ui::next(220);
-    ui::textf(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "共 %d 个城市",
+    ui::textf(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "total %d cities",
                          (int)app.mapCities.size());
 
     if (!app.mapCities.empty()) {
@@ -4014,7 +4021,7 @@ void renderTeleportSection(AppState& app) {
         const std::string preview = (app.mapCitySelected >= 0 &&
                                      app.mapCitySelected < (int)app.mapCities.size())
                                         ? app.mapCities[(size_t)app.mapCitySelected]
-                                        : std::string("(未选择)");
+                                        : std::string("(not selected)");
         ::ImGui::SetNextItemWidth(220);
         if (::ImGui::BeginCombo("##city", preview.c_str())) {
             for (int index : filtered) {
@@ -4027,7 +4034,7 @@ void renderTeleportSection(AppState& app) {
             ::ImGui::EndCombo();
         }
         ui::next(220);
-        if (::ImGui::Button("传送到该城市", ImVec2(130, 0))) {
+        if (::ImGui::Button("Teleport to this city", ImVec2(130, 0))) {
             if (app.mapCitySelected >= 0 && app.mapCitySelected < (int)app.mapCities.size()) {
                 teleportTo(app, app.mapCities[(size_t)app.mapCitySelected]);
             }
@@ -4035,35 +4042,35 @@ void renderTeleportSection(AppState& app) {
     }
 
     ::ImGui::Spacing();
-    ::ImGui::TextWrapped("%s", "城市名");
+    ::ImGui::TextWrapped("%s", "city name");
     ui::next(220);
     ::ImGui::SetNextItemWidth(160);
-    ::ImGui::InputTextWithHint("##cityinput", "例：berlin / calais", app.cityInput,
+    ::ImGui::InputTextWithHint("##cityinput", "Example: berlin/calais", app.cityInput,
                                sizeof(app.cityInput));
     ui::next(220);
-    if (::ImGui::Button("传送（城市）", ImVec2(110, 0))) teleportTo(app, app.cityInput);
+    if (::ImGui::Button("Teleport (city)", ImVec2(110, 0))) teleportTo(app, app.cityInput);
 
     ui::next(220);
-    ::ImGui::TextWrapped("%s", "坐标");
+    ::ImGui::TextWrapped("%s", "coordinates");
     ui::next(220);
     ::ImGui::SetNextItemWidth(180);
-    ::ImGui::InputTextWithHint("##coords", "例：366.0;46.7;617.2", app.coordInput,
+    ::ImGui::InputTextWithHint("##coords", "Example: 366.0;46.7;617.2", app.coordInput,
                                sizeof(app.coordInput));
     ui::next(220);
-    if (::ImGui::Button("传送（坐标）", ImVec2(110, 0))) teleportTo(app, app.coordInput);
+    if (::ImGui::Button("transmission (coordinates)", ImVec2(110, 0))) teleportTo(app, app.coordInput);
 
     ::ImGui::Spacing();
-    if (::ImGui::Button("导航起点", ImVec2(90, 0))) teleportTo(app, "nav_start");
+    if (::ImGui::Button("navigation starting point", ImVec2(90, 0))) teleportTo(app, "nav_start");
     ui::next(220);
-    if (::ImGui::Button("导航终点", ImVec2(90, 0))) teleportTo(app, "nav_end");
+    if (::ImGui::Button("Navigation end point", ImVec2(90, 0))) teleportTo(app, "nav_end");
     ui::next(220);
-    if (::ImGui::Button("下一个导航点", ImVec2(110, 0))) teleportTo(app, "nav_next");
+    if (::ImGui::Button("next navigation point", ImVec2(110, 0))) teleportTo(app, "nav_next");
     ui::next(220);
-    if (::ImGui::Button("上一个导航点", ImVec2(110, 0))) teleportTo(app, "nav_prev");
+    if (::ImGui::Button("Previous navigation point", ImVec2(110, 0))) teleportTo(app, "nav_prev");
     ui::next(220);
-    if (::ImGui::Button("返回上一位置", ImVec2(110, 0))) teleportTo(app, "back");
+    if (::ImGui::Button("Return to the previous position", ImVec2(110, 0))) teleportTo(app, "back");
     ui::next(220);
-    if (::ImGui::Button("瞬移车辆到相机处 (Ctrl+F9)", ImVec2(220, 0))) {
+    if (::ImGui::Button("Teleport the vehicle to the camera (Ctrl+F9)", ImVec2(220, 0))) {
         DWORD pid = app.pid;
         if (!pid) {
             std::wstring exe;
@@ -4082,23 +4089,23 @@ void renderTeleportSection(AppState& app) {
                 ::Sleep(50);
                 ::keybd_event(VK_CONTROL, ctrlScan, KEYEVENTF_KEYUP, 0);
                 ::Sleep(100);
-                logLine("已发送 [Ctrl+F9] 瞬移卡车到相机位置");
+                logLine("Sent [Ctrl+F9] Teleport truck to camera location");
             }
         }
     }
 
     ::ImGui::Spacing();
-    ::ImGui::TextWrapped("%s", "收藏点");
+    ::ImGui::TextWrapped("%s", "collection point");
     ui::next(220);
     ::ImGui::SetNextItemWidth(120);
-    ::ImGui::InputTextWithHint("##spotname", "名字", app.spotName, sizeof(app.spotName));
+    ::ImGui::InputTextWithHint("##spotname", "name", app.spotName, sizeof(app.spotName));
     ui::next(220);
-    if (::ImGui::Button("收藏当前目标", ImVec2(120, 0))) saveTeleportSpot(app);
+    if (::ImGui::Button("Collect current target", ImVec2(120, 0))) saveTeleportSpot(app);
     for (int i = 0; i < (int)app.teleportSpots.size(); ++i) {
         ::ImGui::PushID(i);
-        if (::ImGui::Button("传送", ImVec2(60, 0))) teleportTo(app, app.teleportSpots[(size_t)i].second);
+        if (::ImGui::Button("transmission", ImVec2(60, 0))) teleportTo(app, app.teleportSpots[(size_t)i].second);
         ui::next(220);
-        if (::ImGui::Button("删除", ImVec2(60, 0))) {
+        if (::ImGui::Button("Delete", ImVec2(60, 0))) {
             removeTeleportSpot(app, i);
             ::ImGui::PopID();
             break;
@@ -4129,23 +4136,23 @@ void refreshConvoy(AppState& app) {
             for (const auto& player : app.convoy.players) {
                 if (!names.empty()) names += "、";
                 names += player.name;
-                if (player.you) names += "(你)";
+                if (player.you) names += "(you)";
             }
             app.convoyNote += "：" + names;
         }
     } else {
         app.convoy = ConvoySession{};
-        app.convoyNote = "联运检测已关闭。点「读取玩家列表」可手动读取日志中的会话。";
+        app.convoyNote = "Intermodal detection is closed. Click \"Read Player List\" to manually read the sessions in the log.";
     }
-    logLine("联机状态：" + app.mpDetail + (isConvoyCheckEnabled() ? ("；" + app.convoy.note) : ""));
+    logLine("online status:" + app.mpDetail + (isConvoyCheckEnabled() ? ("；" + app.convoy.note) : ""));
 }
 
 void setMultiplayerPolicy(AppState& app, int policy) {
     app.mpPolicy = (policy == 1) ? 1 : 0;
     saveSettings(app);
     logLine(app.mpPolicy == 1
-                ? "已切换为「联运模式」：联机时放开控制台/传送/自由相机，写入类功能仍然禁用"
-                : "已切换为「严格模式」：联机时禁用所有功能");
+                ? "has been switched to \"intermodal mode\": release the console/teleport/free camera when online, writing functions are still disabled"
+                : "has been switched to \"strict mode\": all functions are disabled while online\nThis function has been disabled in the");
 }
 
 std::string multiplayerGateForSafeFeature(const AppState& app) {
@@ -4156,10 +4163,10 @@ std::string multiplayerGateForSafeFeature(const AppState& app) {
     }
     MultiplayerStatus status = checkMultiplayer(pid);
     if (status.kind == MultiplayerKind::TruckersMp) {
-        return "TruckersMP 环境下已禁用该功能（对方有反作弊，容易被封号）";
+        return "TruckersMP environment (the other party has anti-cheating and is easily banned)";
     }
     if (isConvoyCheckEnabled() && status.kind == MultiplayerKind::Convoy && app.mpPolicy != 1) {
-        return "检测到官方 Convoy 会话：默认禁用。需要的话请在「联运模式」面板里显式切换为联运模式。";
+        return "Official Convoy session detected: disabled by default. If necessary, please explicitly switch to intermodal mode in the \"Intermodal Mode\" panel.";
     }
     return std::string();
 }
@@ -4167,11 +4174,11 @@ std::string multiplayerGateForSafeFeature(const AppState& app) {
 namespace {
 
 void renderConvoySection(AppState& app) {
-    if (!::ImGui::CollapsingHeader("联运模式（Convoy / 联机）", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (!::ImGui::CollapsingHeader("intermodal mode (Convoy / online)", ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
     bool checkConvoy = app.checkConvoy;
-    if (::ImGui::Checkbox("启用官方联运 (Convoy) 会话检测", &checkConvoy)) {
+    if (::ImGui::Checkbox("Enable official Convoy session detection", &checkConvoy)) {
         app.checkConvoy = checkConvoy;
         setConvoyCheckEnabled(checkConvoy);
         refreshConvoy(app);
@@ -4179,31 +4186,31 @@ void renderConvoySection(AppState& app) {
     }
     if (!app.checkConvoy) {
         ui::next(220);
-        ui::textf(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "（检测已关闭）");
+        ui::textf(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "(detection is turned off)");
     }
     ::ImGui::Spacing();
 
-    if (::ImGui::Button("刷新联机状态", ImVec2(130, 0))) refreshConvoy(app);
+    if (::ImGui::Button("Refresh online status", ImVec2(130, 0))) refreshConvoy(app);
     ui::next(220);
-    if (::ImGui::Button("读取玩家列表", ImVec2(130, 0))) {
+    if (::ImGui::Button("Read player list", ImVec2(130, 0))) {
         app.convoy = readConvoySession();
         app.convoyNote = app.convoy.note;
     }
     ui::next(220);
     ui::textf(app.mpBlocks ? ImVec4(1.0f, 0.6f, 0.6f, 1.0f)
                                       : ImVec4(0.6f, 0.9f, 0.6f, 1.0f),
-                         "%s", app.mpDetail.empty() ? "还没检测联机状态" : app.mpDetail.c_str());
+                         "%s", app.mpDetail.empty() ? "has not checked the connection status yet" : app.mpDetail.c_str());
 
     if (app.convoy.active) {
-        ui::textf(ImVec4(0.6f, 0.85f, 1.0f, 1.0f), "%s（开始于 %s）",
+        ui::textf(ImVec4(0.6f, 0.85f, 1.0f, 1.0f), "%s (started with %s)",
                              app.convoy.note.c_str(),
-                             app.convoy.startedAt.empty() ? "未知" : app.convoy.startedAt.c_str());
+                             app.convoy.startedAt.empty() ? "unknown" : app.convoy.startedAt.c_str());
         if (app.convoy.players.empty()) {
-            ::ImGui::TextWrapped("%s", "（还没有解析到玩家，可能刚进会话）");
+            ::ImGui::TextWrapped("%s", "(The player has not been resolved yet, maybe just entered the session)");
         } else {
             for (const auto& player : app.convoy.players) {
                 ::ImGui::BulletText("%s  (client %d)%s", player.name.c_str(), player.clientId,
-                                    player.you ? "  ← 你" : "");
+                                    player.you ? " ← you" : "");
             }
         }
     } else {
@@ -4213,10 +4220,10 @@ void renderConvoySection(AppState& app) {
     if (app.checkConvoy) {
         ::ImGui::Spacing();
         int policy = app.mpPolicy;
-        if (::ImGui::RadioButton("严格模式：限制联机功能（TruckersMP 自动油量／电量除外）", &policy, 0)) {
+        if (::ImGui::RadioButton("strict mode: restrict online functions (except TruckersMP automatic fuel/power)", &policy, 0)) {
             setMultiplayerPolicy(app, 0);
         }
-        if (::ImGui::RadioButton("联运模式：联机时放开不写内存的功能", &policy, 1)) {
+        if (::ImGui::RadioButton("intermodal mode: release the function of not writing memory when online", &policy, 1)) {
             setMultiplayerPolicy(app, 1);
         }
     }
@@ -4224,26 +4231,26 @@ void renderConvoySection(AppState& app) {
     const std::string gate = multiplayerGateForSafeFeature(app);
     ui::textf(gate.empty() ? ImVec4(0.6f, 0.9f, 0.6f, 1.0f)
                                       : ImVec4(1.0f, 0.75f, 0.5f, 1.0f),
-                         "安全功能当前：%s", gate.empty() ? "可用" : gate.c_str());
+                         "Security function currently: %s", gate.empty() ? "available" : gate.c_str());
     ui::textf(ImVec4(1.0f, 0.6f, 0.6f, 1.0f),
-                         "其他写入功能：%s",
-                         app.mpBlocks ? "联机中已禁用" : (app.checkConvoy ? "可用（单机）" : "可用（联运检测已关闭）"));
-    ::ImGui::TextWrapped("TruckersMP 下允许车辆页的自动无限油量／电量；无损、动力、经济和手动写入仍使用原有保护。");
+                         "Other writing functions: %s",
+                         app.mpBlocks ? "is disabled while online" : (app.checkConvoy ? "available (standalone)" : "is available (intermodal detection is turned off)"));
+    ::ImGui::TextWrapped("TruckersMP allows automatic unlimited fuel/electricity for vehicle pages; damage prevention, power, economy and manual writing still use the original protection.");
 }
 
 void renderFlyModeSection(AppState& app);
 
 void renderConsoleTabImpl(AppState& app) {
-    ui::beginCard("##travel_teleport", "快捷传送");
+    ui::beginCard("##travel_teleport", "Quick transmission");
     renderTeleportSection(app);
     ui::endCard();
     ::ImGui::Spacing();
-    ui::beginCard("##travel_camera", "自由相机");
+    ui::beginCard("##travel_camera", "free camera");
     renderFlyModeSection(app);
     ui::endCard();
     ::ImGui::Spacing();
-    ui::beginCard("##travel_console", "游戏控制台");
-    ::ImGui::TextWrapped("%s", "控制台按键");
+    ui::beginCard("##travel_console", "game console");
+    ::ImGui::TextWrapped("%s", "console button");
     ui::next(220);
     const auto& options = consoleKeyOptions();
     int currentOption = 0;
@@ -4264,33 +4271,33 @@ void renderConsoleTabImpl(AppState& app) {
         ::ImGui::EndCombo();
     }
     ui::next(220);
-    if (::ImGui::Button("从 controls.sii 自动识别")) detectConsoleKey(app);
+    if (::ImGui::Button("automatically recognized from controls.sii")) detectConsoleKey(app);
     ui::next(220);
-    if (::ImGui::Button("检测/开启控制台(config.cfg)")) checkConsoleConfig(app);
+    if (::ImGui::Button("detection/opening console (config.cfg)")) checkConsoleConfig(app);
     if (!app.consoleNote.empty()) {
         ui::textf(ImVec4(0.85f, 0.85f, 0.55f, 1.0f), "%s", app.consoleNote.c_str());
     }
     ::ImGui::Spacing();
-    ::ImGui::TextWrapped("%s", "命令");
+    ::ImGui::TextWrapped("%s", "command");
     ui::next(220);
     ::ImGui::SetNextItemWidth(-140);
     ::ImGui::InputText("##cmd", app.consoleCmd, sizeof(app.consoleCmd));
     ui::next(220);
-    if (::ImGui::Button("发送到游戏", ImVec2(120, 0))) sendConsole(app, app.consoleCmd);
+    if (::ImGui::Button("Send to game", ImVec2(120, 0))) sendConsole(app, app.consoleCmd);
 
     ::ImGui::Spacing();
-    ::ImGui::TextWrapped("%s", "常用命令");
+    ::ImGui::TextWrapped("%s", "Common commands");
     struct Preset {
         const char* label;
         const char* command;
     };
     static const Preset kPresets[] = {
-        {"时间 08:00", "g_set_time 8 0"},   {"时间 20:00", "g_set_time 20 0"},
-        {"关闭警察", "g_police 0"},         {"开启警察", "g_police 1"},
-        {"关闭疲劳", "g_fatigue 0"},        {"开启疲劳", "g_fatigue 1"},
-        {"收入 x5", "g_income_factor 5.0"}, {"收入 x1", "g_income_factor 1.0"},
-        {"清空交通", "g_traffic 0"},        {"恢复交通", "g_traffic 1"},
-        {"显示 FPS", "g_fps 1"},            {"关闭 FPS", "g_fps 0"},
+        {"time 08:00", "g_set_time 8 0"},   {"time 20:00", "g_set_time 20 0"},
+        {"Close the police", "g_police 0"},         {"Turn on the police", "g_police 1"},
+        {"Turn off fatigue", "g_fatigue 0"},        {"Turn on fatigue", "g_fatigue 1"},
+        {"income x5", "g_income_factor 5.0"}, {"income x1", "g_income_factor 1.0"},
+        {"clear traffic", "g_traffic 0"},        {"restore traffic", "g_traffic 1"},
+        {"display FPS", "g_fps 1"},            {"Turn off FPS", "g_fps 0"},
     };
     const int perRow = std::max(1, (int)((::ImGui::GetContentRegionAvail().x + 12) / 122));
     for (int i = 0; i < (int)(sizeof(kPresets) / sizeof(kPresets[0])); ++i) {
@@ -4301,33 +4308,33 @@ void renderConsoleTabImpl(AppState& app) {
     }
     ::ImGui::Spacing();
     ui::textf(ImVec4(0.85f, 0.55f, 0.55f, 1.0f),
-                         "发送会切换游戏窗口到前台，驾驶中请先停车。");
+                         "Sending will switch the game window to the foreground. Please stop the car first while driving.");
     ui::textf(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
-                         "需要 config.cfg：uset g_console \"1\" 与 uset g_developer \"1\"。");
+                         "requires config.cfg: uset g_console \"1\" and uset g_developer \"1\".");
 
     ::ImGui::Spacing();
     ::ImGui::Separator();
     ::ImGui::Spacing();
     ui::endCard();
     ::ImGui::Spacing();
-    ui::beginCard("##travel_multiplayer", "联机状态与保护");
+    ui::beginCard("##travel_multiplayer", "online status and protection");
     renderConvoySection(app);
     ui::endCard();
 }
 
 void renderFlyModeSection(AppState& app) {
-    if (::ImGui::CollapsingHeader("飞行模式（自由相机）", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (::ImGui::Button("检查 config.cfg", ImVec2(140, 0))) refreshFlyMode(app);
+    if (::ImGui::CollapsingHeader("flight mode (free camera)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (::ImGui::Button("check config.cfg", ImVec2(140, 0))) refreshFlyMode(app);
         ui::next(220);
-        if (::ImGui::Button("从 controls.sii 识别相机按键", ImVec2(220, 0))) detectCameraKeys(app);
+        if (::ImGui::Button("identifies camera buttons from controls.sii", ImVec2(220, 0))) detectCameraKeys(app);
         ui::next(220);
-        if (::ImGui::Button("写入飞行模式设置", ImVec2(160, 0))) enableFlyMode(app);
+        if (::ImGui::Button("Write flight mode settings", ImVec2(160, 0))) enableFlyMode(app);
         ::ImGui::Spacing();
         ::ImGui::TextWrapped("%s", app.flyNote.c_str());
         if (app.cameraLoaded) {
             ui::textf(ImVec4(0.7f, 0.85f, 1.0f, 1.0f),
-                                 "相机按键：开关 %s · 前进 %s · 后退 %s · 左 %s · 右 %s · 上升 %s · "
-                                 "下降 %s",
+                                 "Camera buttons: switch %s · Forward %s · Back %s · Left %s · Right %s · Up %s · "
+                                 "down %s",
                                  keyLabel(app.camera.toggle).c_str(),
                                  keyLabel(app.camera.forward).c_str(),
                                  keyLabel(app.camera.back).c_str(),
@@ -4337,22 +4344,22 @@ void renderFlyModeSection(AppState& app) {
                                  keyLabel(app.camera.down).c_str());
         }
         ::ImGui::Spacing();
-        ::ImGui::TextWrapped("%s", "飞行速度 g_flyspeed");
+        ::ImGui::TextWrapped("%s", "flight speed g_flyspeed");
         ui::next(220);
         ::ImGui::SetNextItemWidth(90);
         ::ImGui::InputText("##flyspeed", app.flySpeed, sizeof(app.flySpeed),
                            ImGuiInputTextFlags_CharsDecimal);
         ui::next(220);
-        if (::ImGui::Button("立即应用", ImVec2(90, 0))) setFlySpeed(app, app.flySpeed);
+        if (::ImGui::Button("Apply immediately", ImVec2(90, 0))) setFlySpeed(app, app.flySpeed);
         static const char* kSpeeds[] = {"50", "100", "300", "1000", "3000"};
         for (const char* speed : kSpeeds) {
             ui::next(220);
             if (::ImGui::Button(speed, ImVec2(60, 0))) setFlySpeed(app, speed);
         }
         ::ImGui::Spacing();
-        if (::ImGui::Button("切换自由相机（进入/退出视角）", ImVec2(220, 0))) toggleFreeCamera(app);
+        if (::ImGui::Button("Switch free camera (enter/exit perspective)", ImVec2(220, 0))) toggleFreeCamera(app);
         ui::next(220);
-        if (::ImGui::Button("瞬移车辆到当前自由相机位置 (Ctrl+F9)", ImVec2(260, 0))) {
+        if (::ImGui::Button("Teleport the vehicle to the current free camera position (Ctrl+F9)", ImVec2(260, 0))) {
             DWORD pid = app.pid;
             if (!pid) {
                 std::wstring exe;
@@ -4371,12 +4378,12 @@ void renderFlyModeSection(AppState& app) {
                     ::Sleep(50);
                     ::keybd_event(VK_CONTROL, ctrlScan, KEYEVENTF_KEYUP, 0);
                     ::Sleep(100);
-                    logLine("已发送 [Ctrl+F9] 瞬移卡车到相机位置");
+                    logLine("Sent [Ctrl+F9] Teleport truck to camera location");
                 }
             }
         }
         ui::next(220);
-        if (::ImGui::Button("切回第一人称驾驶室 (按1)", ImVec2(180, 0))) {
+        if (::ImGui::Button("Switch back to the first-person cab (press 1)", ImVec2(180, 0))) {
             DWORD pid = app.pid;
             if (!pid) {
                 std::wstring exe;
@@ -4400,9 +4407,9 @@ void renderSaveTabImpl(AppState& app) {
         clearSaveSlotSelection(app);
     app.visibleSaveSlotCount=0;
     ::ImGui::BeginDisabled(app.busy);
-    if (::ImGui::Button("刷新存档列表")) refreshSaves(app);
+    if (::ImGui::Button("Refresh archive list")) refreshSaves(app);
     ui::next(300);
-    ::ImGui::TextDisabled("%d 个档案  ·  %d 个存档",(int)app.saveProfiles.size(), (int)app.slots.size());
+    ::ImGui::TextDisabled("%d files · %d files",(int)app.saveProfiles.size(), (int)app.slots.size());
     ::ImGui::Spacing();
     const int columns = ::ImGui::GetContentRegionAvail().x >= 880 ? 2 : 1;
     if (::ImGui::BeginTable("##save_workspace", columns, ImGuiTableFlags_SizingStretchProp)) {
@@ -4411,14 +4418,14 @@ void renderSaveTabImpl(AppState& app) {
             ::ImGui::TableSetupColumn("detail", ImGuiTableColumnFlags_WidthStretch, 1.4f);
         }
         ::ImGui::TableNextColumn();
-        ui::beginCard("##save_library", "我的档案与存档");
+        ui::beginCard("##save_library", "My files and archives");
         ::ImGui::BeginChild("##save_profiles",ImVec2(0,144));
-        if(app.saveProfiles.empty()) ui::text(ui::muted,"尚未找到包含存档的档案。");
+        if(app.saveProfiles.empty()) ui::text(ui::muted,"The file containing the archive has not been found.");
         for(int i=0;i<(int)app.saveProfiles.size();++i) {
             const auto& profile=app.saveProfiles[i];
             ::ImGui::PushID(i);
-            const std::string label=fmt("%s  [%s]  ·  %d 个存档",profile.name.c_str(),
-                                       profile.cloud ? "Steam 云" : "本地",(int)profile.slots.size());
+            const std::string label=fmt("%s [%s] · %d archives",profile.name.c_str(),
+                                       profile.cloud ? "Steam Cloud" : "local",(int)profile.slots.size());
             if(::ImGui::Selectable(label.c_str(),app.selectedSaveProfile==i,ImGuiSelectableFlags_None,ImVec2(0,32)))
                 selectSaveProfile(app,i);
             if(app.saveProfileUiProbe.capture && i<3) {
@@ -4432,9 +4439,9 @@ void renderSaveTabImpl(AppState& app) {
         ::ImGui::EndChild();
         ::ImGui::Separator();
         const SaveProfileGroup* selectedProfile=app.selectedSaveProfile>=0 ? &app.saveProfiles[app.selectedSaveProfile] : nullptr;
-        if(selectedProfile) ui::textf(ui::accent,"%s · %d 个存档",selectedProfile->name.c_str(),(int)selectedProfile->slots.size());
+        if(selectedProfile) ui::textf(ui::accent,"%s · %d archives",selectedProfile->name.c_str(),(int)selectedProfile->slots.size());
         ::ImGui::BeginChild("##slots", ImVec2(0, 266));
-        if (app.slots.empty()) ui::text(ui::muted, "还没有找到存档。可刷新列表，或确认当前选择的游戏。");
+        if (app.slots.empty()) ui::text(ui::muted, "The archive has not been found. You can refresh the list, or confirm the currently selected game.");
         const std::vector<int> noSlots;
         for (int i : selectedProfile ? selectedProfile->slots : noSlots) {
             if(i<0 || i>=(int)app.slots.size()) continue;
@@ -4450,7 +4457,7 @@ void renderSaveTabImpl(AppState& app) {
             draw->PushClipRect(pos, ImVec2(pos.x + width, pos.y + 62), true);
             const std::string name = slot.displayName.empty() ? W2U(slot.slotName) : slot.displayName;
             draw->AddText(ImVec2(pos.x + 10, pos.y + 6), ::ImGui::GetColorU32(app.selectedSlot == i ? ui::accent : ui::foreground), name.c_str());
-            const std::string detail = "槽位 "+W2U(slot.slotName) + " / " + localTimeString(slot.mtime);
+            const std::string detail = "slot "+W2U(slot.slotName) + " / " + localTimeString(slot.mtime);
             ::ImGui::PushFont(nullptr, 14);
             draw->AddText(ImVec2(pos.x + 10, pos.y + 33), ::ImGui::GetColorU32(ui::muted), detail.c_str());
             ::ImGui::PopFont();
@@ -4461,78 +4468,78 @@ void renderSaveTabImpl(AppState& app) {
         ::ImGui::EndChild();
         ui::endCard();
         ::ImGui::TableNextColumn();
-        ui::beginCard("##save_selection", "存档详情与操作");
+        ui::beginCard("##save_selection", "archive details and operations");
         if (app.selectedSlot >= 0 && app.selectedSlot < (int)app.slots.size()) {
             const auto& slot = app.slots[(size_t)app.selectedSlot];
             ui::text(ui::accent, slot.displayName.empty() ? W2U(slot.slotName).c_str() : slot.displayName.c_str());
-            ui::textf(ui::muted, "档案：%s / 槽位：%s", W2U(slot.profileName).c_str(), W2U(slot.slotName).c_str());
-            ui::textf(ui::muted, "%s  ·  %s  ·  %s", slot.cloud ? "Steam 云" : "本地", slot.formatText.c_str(), formatSize(slot.size).c_str());
+            ui::textf(ui::muted, "File: %s / Slot: %s", W2U(slot.profileName).c_str(), W2U(slot.slotName).c_str());
+            ui::textf(ui::muted, "%s  ·  %s  ·  %s", slot.cloud ? "Steam Cloud" : "local", slot.formatText.c_str(), formatSize(slot.size).c_str());
             ::ImGui::Spacing();
         } else {
-            ui::text(ui::muted, "先选择档案，再选择其中的存档，查看详情、备份或导出。");
+            ui::text(ui::muted, "Select the file first, then select the archive within it to view details, backup or export.");
             ::ImGui::Spacing();
         }
-    if (ui::primaryButton("备份选中存档")) backupSelectedSlot(app);
+    if (ui::primaryButton("Backup selected archive")) backupSelectedSlot(app);
     ui::next(210);
-    if (::ImGui::Button("解密导出选中", ImVec2(130, 0))) exportSelectedSlot(app);
-    if (::ImGui::IsItemHovered()) ::ImGui::SetTooltip("保留解密后的格式：BSII / 3nK 仍为二进制。");
+    if (::ImGui::Button("decryption export selected", ImVec2(130, 0))) exportSelectedSlot(app);
+    if (::ImGui::IsItemHovered()) ::ImGui::SetTooltip("retains the decrypted format: BSII/3nK is still binary.");
     ui::next(210);
-    if (::ImGui::Button("导出可读 SII", ImVec2(150, 0))) exportReadableSelectedSlot(app);
-    if (::ImGui::IsItemHovered()) ::ImGui::SetTooltip("自动解密并把 BSII v3 转成可读文本；已是 SII 文本时原样保留。");
-    if (::ImGui::Button("打开备份文件夹", ImVec2(130, 0))) {
+    if (::ImGui::Button("exports readable SII", ImVec2(150, 0))) exportReadableSelectedSlot(app);
+    if (::ImGui::IsItemHovered()) ::ImGui::SetTooltip("automatically decrypts and converts BSII v3 into readable text; if it is SII text, it is left intact.");
+    if (::ImGui::Button("Open the backup folder", ImVec2(130, 0))) {
         std::wstring root = backupRoot();
         ::CreateDirectoryW(root.c_str(), nullptr);
         ::ShellExecuteW(nullptr, L"open", root.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     }
     ui::next(210);
-    if (::ImGui::Button("打开导出文件夹", ImVec2(130, 0))) {
+    if (::ImGui::Button("Open the export folder", ImVec2(130, 0))) {
         const std::wstring exports = documentsDir() + L"\\exports";
         if (!isDirSegment(exports)) ::CreateDirectoryW(exports.c_str(), nullptr);
         if (!isDirSegment(exports)) {
-            app.saveNote = "打开导出文件夹失败：目标不是可用目录";
+            app.saveNote = "Failed to open the export folder: The target is not an available directory";
             logLine(app.saveNote);
         } else if ((INT_PTR)::ShellExecuteW(nullptr, L"open", exports.c_str(), nullptr, nullptr,
                                             SW_SHOWNORMAL) <= 32) {
-            app.saveNote = "打开导出文件夹失败：系统无法打开该目录";
+            app.saveNote = "Failed to open the export folder: The system cannot open the directory";
             logLine(app.saveNote);
         }
     }
 
     ui::next(210);
-    if (::ImGui::Button("复制为新存档")) {
-        if (app.selectedSlot < 0 || app.selectedSlot >= (int)app.slots.size()) app.saveNote = "请先选择源存档";
+    if (::ImGui::Button("Copy as new archive")) {
+        if (app.selectedSlot < 0 || app.selectedSlot >= (int)app.slots.size()) app.saveNote = "Please select the source archive first";
         else {
             std::string error;
             if (copyBlockedByRunningGame(selectedGame(), &error)) app.saveNote = error;
             else {
                 app.copyRequest = {selectedGame(), app.slots[(size_t)app.selectedSlot], {}};
                 const auto& name = app.copyRequest.source.displayName;
-                ::strncpy_s(app.copyName, (name.empty() ? std::string("存档副本") : name + " 副本").c_str(), _TRUNCATE);
+                ::strncpy_s(app.copyName, (name.empty() ? std::string("archived copy") : name + " copy").c_str(), _TRUNCATE);
                 app.showCopyDialog = true;
             }
         }
     }
-    if (app.showCopyDialog) { ::ImGui::OpenPopup("复制为新存档##copy"); app.showCopyDialog = false; }
-    if (::ImGui::BeginPopupModal("复制为新存档##copy", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (app.showCopyDialog) { ::ImGui::OpenPopup("copied as new archive ##copy"); app.showCopyDialog = false; }
+    if (::ImGui::BeginPopupModal("copied as new archive ##copy", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         if (app.copyRequest.source.slotDir.empty()) ::ImGui::CloseCurrentPopup();
-        ::ImGui::Text("游戏：%s", gameDescriptor(app.copyRequest.game).shortName);
-        ::ImGui::Text("档案：%s / 源槽位：%s", W2U(app.copyRequest.source.profileName).c_str(), W2U(app.copyRequest.source.slotName).c_str());
-        ::ImGui::TextUnformatted("在同一档案创建空闲编号；保留全部存档文件和游戏进度。名称最多 64 个字符。");
+        ::ImGui::Text("Game: %s", gameDescriptor(app.copyRequest.game).shortName);
+        ::ImGui::Text("File: %s / Source slot: %s", W2U(app.copyRequest.source.profileName).c_str(), W2U(app.copyRequest.source.slotName).c_str());
+        ::ImGui::TextUnformatted("Creates an idle number in the same file; retains all save files and game progress. Name can be up to 64 characters.");
         ::ImGui::SetNextItemWidth(420);
-        ::ImGui::InputText("新存档名称", app.copyName, sizeof(app.copyName));
+        ::ImGui::InputText("New archive name", app.copyName, sizeof(app.copyName));
         std::string escaped, error;
         bool valid = siiEscapeName(app.copyName, &escaped, &error);
         if (!valid) ::ImGui::TextWrapped("%s", error.c_str());
         ::ImGui::BeginDisabled(!valid);
-        if (::ImGui::Button("开始复制")) { startSaveCopy(app); ::ImGui::CloseCurrentPopup(); }
+        if (::ImGui::Button("Start copying")) { startSaveCopy(app); ::ImGui::CloseCurrentPopup(); }
         ::ImGui::EndDisabled();
         ui::next(210);
-        if (::ImGui::Button("取消")) ::ImGui::CloseCurrentPopup();
+        if (::ImGui::Button("Cancel")) ::ImGui::CloseCurrentPopup();
         ::ImGui::EndPopup();
     }
 
     ::ImGui::Spacing();
-    if (::ImGui::Button("跨存档复制卡车")) {
+    if (::ImGui::Button("Copy truck across archives")) {
         if(app.truckTransferUiProbe.capture) app.truckTransferUiProbe.clicked=true;
         openTruckTransfer(app);
     }
@@ -4542,40 +4549,40 @@ void renderSaveTabImpl(AppState& app) {
         app.truckTransferUiProbe.buttonY=(lo.y+hi.y)/2;
     }
     if(app.busy && ::ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ::ImGui::SetTooltip("当前任务正在处理中，请完成或取消后再复制卡车。");
+        ::ImGui::SetTooltip("The current task is being processed, please complete or cancel before copying the truck.");
     ui::next(210);
-    ui::text(ui::muted, "直接选择现有存档；退出对应游戏后使用");
+    ui::text(ui::muted, "Directly select the existing archive; use it after exiting the corresponding game");
     ::ImGui::Spacing();
     ::ImGui::BeginDisabled(selectedGame()!=GameId::Ets2);
-    if(::ImGui::Button("Home 配件代码")) openHomeAccessories(app);
+    if(::ImGui::Button("Home accessory code")) openHomeAccessories(app);
     ::ImGui::EndDisabled();
     ui::next(210);
-    ui::text(ui::muted,"粘贴 /def/... 路径，预览后另存副本（欧卡2）");
+    ui::text(ui::muted,"Paste /def/... path, preview and save a copy (ETS2)");
     ::ImGui::Spacing();
     ::ImGui::BeginDisabled(selectedGame()!=GameId::Ets2);
-    if(::ImGui::Button("永久油箱 / 电池扩容"))openHomeAccessories(app,2);
+    if(::ImGui::Button("permanent fuel tank/battery expansion"))openHomeAccessories(app,2);
     ::ImGui::EndDisabled();
-    ui::next(210);ui::text(ui::muted,"选择卡车与容量，生成独立底盘 Mod 和存档副本");
+    ui::next(210);ui::text(ui::muted,"Select truck and capacity, generate independent chassis Mod and archive copy");
     ::ImGui::EndDisabled();
     ::ImGui::Spacing();
-    if(::ImGui::Button("更换挂车")) openTrailerSwap(app);
+    if(::ImGui::Button("replacement trailer")) openTrailerSwap(app);
     ui::next(210);
-    ui::text(ui::muted,"当前连着的挂车换成存档里的另一辆，另存副本生效");
+    ui::text(ui::muted,"The currently connected trailer is replaced by another one in the archive, and the saved copy will take effect.");
     ::ImGui::Spacing();
     ::ImGui::BeginDisabled(selectedGame()!=GameId::Ets2 || app.busy);
-    if(::ImGui::Button("车队经济管理")) openFleet(app);
+    if(::ImGui::Button("Fleet economic management")) openFleet(app);
     ::ImGui::EndDisabled();
     ui::next(210);
-    ui::text(ui::muted,"批量增加司机与卡车，分配到已购车库并另存副本");
+    ui::text(ui::muted,"Add drivers and trucks in batches, assign them to the purchased garage and save a copy");
     renderFleetDialog(app);
     renderTruckTransferDialog(app);
     renderHomeAccessoriesDialog(app);
     renderTrailerSwapDialog(app);
     ::ImGui::BeginDisabled(app.busy);
     ::ImGui::Spacing();
-    if (::ImGui::Button("拆分为独立档案")) openProfileSplit(app);
+    if (::ImGui::Button("split into independent files")) openProfileSplit(app);
     ui::next(210);
-    ui::text(ui::muted, "同一档案的多个存档 → 各自独立的本地档案");
+    ui::text(ui::muted, "Multiple archives of the same file → independent local files");
     renderProfileSplitDialog(app);
 
         ui::endCard();
@@ -4583,36 +4590,36 @@ void renderSaveTabImpl(AppState& app) {
     }
     ui::text(ui::muted, app.saveNote.c_str());
     ::ImGui::Spacing();
-    ui::beginCard("##save_edit", "明文存档数值修改");
+    ui::beginCard("##save_edit", "Plain text archive value modification");
     ::ImGui::SameLine();
-    ui::textf(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "（写入前自动备份）");
-    ::ImGui::TextUnformatted("现金");
+    ui::textf(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "(automatic backup before writing)");
+    ::ImGui::TextUnformatted("Cash");
     ::ImGui::SameLine();
     ::ImGui::SetNextItemWidth(150);
     ::ImGui::InputText("##smoney", app.saveMoney, sizeof(app.saveMoney),
                        ImGuiInputTextFlags_CharsDecimal);
     ::ImGui::SameLine();
-    ::ImGui::TextUnformatted("经验");
+    ::ImGui::TextUnformatted("Experience");
     ::ImGui::SameLine();
     ::ImGui::SetNextItemWidth(150);
     ::ImGui::InputText("##sxp", app.saveXp, sizeof(app.saveXp), ImGuiInputTextFlags_CharsDecimal);
     ::ImGui::SameLine();
-    if (::ImGui::Button("写入明文存档", ImVec2(130, 0))) applyTextPatch(app);
+    if (::ImGui::Button("Write plain text archive", ImVec2(130, 0))) applyTextPatch(app);
 
     ::ImGui::Spacing();
     ui::endCard();
     ::ImGui::Spacing();
-    ui::beginCard("##backup_card", "备份列表");
+    ui::beginCard("##backup_card", "backup list");
     ::ImGui::SameLine();
-    if (::ImGui::Button("还原选中备份", ImVec2(120, 0))) restoreSelectedBackup(app);
+    if (::ImGui::Button("Restore selected backup", ImVec2(120, 0))) restoreSelectedBackup(app);
     if (::ImGui::BeginTable("##backups", 4,
                             ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg |
                                 ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit,
                             ImVec2(0, 150))) {
-        ::ImGui::TableSetupColumn("备份时间", ImGuiTableColumnFlags_WidthFixed, 160);
-        ::ImGui::TableSetupColumn("档案", ImGuiTableColumnFlags_WidthFixed, 120);
-        ::ImGui::TableSetupColumn("存档位", ImGuiTableColumnFlags_WidthFixed, 130);
-        ::ImGui::TableSetupColumn("备注", ImGuiTableColumnFlags_WidthFixed, 110);
+        ::ImGui::TableSetupColumn("backup time", ImGuiTableColumnFlags_WidthFixed, 160);
+        ::ImGui::TableSetupColumn("File", ImGuiTableColumnFlags_WidthFixed, 120);
+        ::ImGui::TableSetupColumn("archive location", ImGuiTableColumnFlags_WidthFixed, 130);
+        ::ImGui::TableSetupColumn("Remarks", ImGuiTableColumnFlags_WidthFixed, 110);
         ::ImGui::TableHeadersRow();
         for (int i = 0; i < (int)app.backups.size(); ++i) {
             const BackupInfo& info = app.backups[(size_t)i];
@@ -4636,49 +4643,49 @@ void renderSaveTabImpl(AppState& app) {
     }
     ui::endCard();
     ::ImGui::EndDisabled();
-    if (app.busy && ::ImGui::Button("取消当前任务")) app.cancel = true;
+    if (app.busy && ::ImGui::Button("Cancel the current task")) app.cancel = true;
 }
 
 void renderHelpTabImpl(AppState& app) {
     static const char* kHelp =
-        "【前提】先启动游戏（单机），再点顶部「附加游戏」；改内存需要管理员权限。\n"
+        "[Prerequisite] Start the game (stand-alone) first, and then click \"Additional Games\" at the top; changing memory requires administrator rights. \n"
         "\n"
-        "【改钱 / 经验】美卡：填写目标金额后直接改钱；欧卡首次需填写当前金额作为定位种子。\n"
-        "　　　　　　　之后：直接填目标值再点一次即可。写的是游戏权威存储，无需锁定。\n"
-        "【车辆】燃油车勾选无限油量，电动车勾选无限电量，两者互斥；车辆页显示剩余能量百分比。动力目标设置后点击「应用调校」。\n"
-        "　　　　点击「恢复原厂」还原动力；换车、读档自动跟随当前车辆。\n"
-        "【扫描器】任意数值都可扫描；向多个候选地址写入前会要求确认。\n"
-        "【存档】备份 / 还原 / 解密导出 / 导出可读 SII / 复制为新存档 / 跨存档复制卡车 / 拆分独立档案。\n"
-        "　　　　导出到当前游戏文档目录的 exports，不覆盖旧文件；写入、复制与拆分需先退出对应游戏。\n"
+        "[Change Money/Experience] ATS: Change the money directly after filling in the target amount; ETS2 needs to fill in the current amount as the positioning seed for the first time. \n"
+        "After that: directly fill in the target value and click again. What is written is the authoritative storage of the game and does not require locking. \n"
+        "[Vehicle] Check unlimited fuel capacity for fuel vehicles and unlimited power for electric vehicles. The two are mutually exclusive; the remaining energy percentage is displayed on the vehicle page. After setting the power target, click \"Apply Adjustment.\" \n"
+        "Click \"Restore to Original Factory\" to restore power; change vehicles and read gears to automatically follow the current vehicle. \n"
+        "[Scanner] Any value can be scanned; confirmation will be required before writing to multiple candidate addresses. \n"
+        "[Archive] Backup/Restore/Decrypt Export/Export Readable SII/Copy to New Archive/Copy Trucks Across Archives/Split Independent Archives. \n"
+        "Exports to the exports of the current game document directory without overwriting old files; writing, copying and splitting require exiting the corresponding game first. \n"
         "\n"
-        "【加密存档】解密与可读 SII 转换另存为导出文件；卡车复制生成新存档槽，保留原始存档。\n"
-        "　　　　　　金额与经验可在内存中修改，再由游戏自动存档。\n"
+        "[Encrypted Archive] Decrypted and readable SII conversion is saved as an export file; truck copy generates a new archive slot, retaining the original archive. \n"
+        "The amount and experience can be modified in the memory and then automatically saved by the game. \n"
         "\n"
-        "【安全】只在单机使用；TruckersMP 写入保护始终启用，Convoy 写入保护按检测设置生效。\n"
-        "　　　　本工具不修改游戏 exe，也不注入代码，只做内存与存档文件读写。";
-    ui::beginCard("##settings_preferences", "工作区设置");
+        "[Security] Only used on a single machine; TruckersMP write protection is always enabled, and Convoy write protection takes effect according to detection settings. \n"
+        "This tool does not modify the game exe nor inject code. It only reads and writes memory and archive files.";
+    ui::beginCard("##settings_preferences", "workspace settings");
     ::ImGui::Spacing();
     ::ImGui::Separator();
     ::ImGui::Spacing();
-    ui::textf(ui::accent, "全局游戏热键（无需切屏）：");
+    ui::textf(ui::accent, "Global game hotkey (no need to switch the screen):");
     bool hk = app.hotkeysEnabled;
-    if (::ImGui::Checkbox("启用游戏内全局热键", &hk)) {
+    if (::ImGui::Checkbox("Enable in-game global hotkeys", &hk)) {
         app.hotkeysEnabled = hk;
         saveSettings(app);
     }
-    ::ImGui::BulletText("Ctrl+F1 传送导航终点 · Ctrl+F2 无限油量 · Ctrl+F3 车辆无损");
-    ::ImGui::BulletText("Ctrl+F4 发动机动力 · Ctrl+F5 时间 09:00 · Ctrl+F6 无限电量 · Ctrl+Backspace 撤销传送");
+    ::ImGui::BulletText("Ctrl+F1 transfer navigation end point · Ctrl+F2 unlimited fuel · Ctrl+F3 vehicle intact");
+    ::ImGui::BulletText("Ctrl+F4 Engine power · Ctrl+F5 Time 09:00 · Ctrl+F6 Unlimited power · Ctrl+Backspace Undo transfer");
     ::ImGui::Spacing();
     ::ImGui::Separator();
     ::ImGui::Spacing();
-    ::ImGui::TextWrapped("%s", "扫描时跳过超过");
+    ::ImGui::TextWrapped("%s", "Skip more than\nMemory area of");
     ui::next(220);
     ::ImGui::SetNextItemWidth(90);
     ::ImGui::DragFloat("##maxgb", &app.maxRegionGb, 0.1f, 0.0f, 64.0f, "%.1f GB");
     ui::next(220);
-    ::ImGui::TextWrapped("%s", "的内存区（0 = 不跳过）");
+    ::ImGui::TextWrapped("%s", "(0 = do not skip)");
     ui::next(220);
-    ::ImGui::TextWrapped("%s", "   线程数");
+    ::ImGui::TextWrapped("%s", " Number of threads");
     ui::next(220);
     {
         int idx = 0;
@@ -4692,9 +4699,9 @@ void renderHelpTabImpl(AppState& app) {
         }
     }
     ui::next(220);
-    if (::ImGui::Button("保存设置")) {
+    if (::ImGui::Button("Save settings")) {
         saveSettings(app);
-        logLine("设置已保存到 settings.ini");
+        logLine("settings saved to settings.ini");
     }
     ::ImGui::Spacing();
     ui::textf(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "%s", app.procStatus.c_str());
@@ -4703,17 +4710,17 @@ void renderHelpTabImpl(AppState& app) {
     }
     ui::endCard();
     ::ImGui::Spacing();
-    ui::beginCard("##settings_manual", "使用说明");
+    ui::beginCard("##settings_manual", "Instructions for Use");
     ::ImGui::TextWrapped("%s", kHelp);
     ui::endCard();
 }
 
 void renderConfirmDialogs(AppState& app) {
     if (app.requestMultiConfirm) {
-        ::ImGui::OpenPopup("确认批量修改");
+        ::ImGui::OpenPopup("Confirm batch modification");
         app.requestMultiConfirm = false;
     }
-    if (::ImGui::BeginPopupModal("确认批量修改", nullptr,
+    if (::ImGui::BeginPopupModal("Confirm batch modification", nullptr,
                                  ImGuiWindowFlags_AlwaysAutoResize)) {
         PanelKind kind = (app.pendingMultiKind >= (int)PanelKind::Money &&
                           app.pendingMultiKind <= (int)PanelKind::Damage)
@@ -4722,12 +4729,12 @@ void renderConfirmDialogs(AppState& app) {
         ScanSession* session = sessionFor(app, kind);
         const size_t count = session ? session->count() : 0;
         ui::textf(ImVec4(0.95f, 0.50f, 0.35f, 1.0f),
-                             "当前仍有 %llu 个候选地址。",
+                             "currently still has %llu candidate addresses.",
                              (unsigned long long)count);
-        ::ImGui::TextWrapped("批量修改可能把无关的游戏数据一起改掉。建议取消并继续收窄，直到只剩 1 个地址。");
+        ::ImGui::TextWrapped("Batch modification may modify irrelevant game data together. It is recommended to cancel and continue narrowing until only 1 address remains.");
         ::ImGui::Spacing();
-        const char* confirmLabel = app.pendingMultiAction == 2 ? "仍然锁定全部候选"
-                                                                : "仍然写入全部候选";
+        const char* confirmLabel = app.pendingMultiAction == 2 ? "still locks all candidates"
+                                                                : "still writes all candidates";
         ::ImGui::BeginDisabled(!session || count < 2);
         if (::ImGui::Button(confirmLabel, ImVec2(190, 0))) {
             if (app.pendingMultiAction == 2) {
@@ -4742,7 +4749,7 @@ void renderConfirmDialogs(AppState& app) {
         }
         ::ImGui::EndDisabled();
         ::ImGui::SameLine();
-        if (::ImGui::Button("取消，继续收窄", ImVec2(170, 0))) {
+        if (::ImGui::Button("Cancel, continue to narrow", ImVec2(170, 0))) {
             if (app.pendingMultiAction == 2) {
                 if (bool* state = lockFor(app, kind)) *state = false;
             }
@@ -4754,37 +4761,37 @@ void renderConfirmDialogs(AppState& app) {
     }
 
     if (app.requestRestoreConfirm) {
-        ::ImGui::OpenPopup("确认还原存档");
+        ::ImGui::OpenPopup("Confirm to restore archive");
         app.requestRestoreConfirm = false;
     }
-    if (::ImGui::BeginPopupModal("确认还原存档", nullptr,
+    if (::ImGui::BeginPopupModal("Confirm to restore archive", nullptr,
                                  ImGuiWindowFlags_AlwaysAutoResize)) {
         const BackupInfo* info =
             (app.selectedBackup >= 0 && app.selectedBackup < (int)app.backups.size())
                 ? &app.backups[(size_t)app.selectedBackup]
                 : nullptr;
         if (info) {
-            ::ImGui::Text("档案：%s", W2U(info->profile).c_str());
-            ::ImGui::Text("存档位：%s", W2U(info->slot).c_str());
-            ::ImGui::Text("备份时间：%s", W2U(info->time).c_str());
+            ::ImGui::Text("File: %s", W2U(info->profile).c_str());
+            ::ImGui::Text("archive location: %s", W2U(info->slot).c_str());
+            ::ImGui::Text("Backup time: %s", W2U(info->time).c_str());
         }
         DWORD gamePid = 0;
         const bool gameRunning = findProcess(selectedProcessName(), &gamePid, nullptr);
         if (gameRunning) {
             ui::textf(ImVec4(0.95f, 0.40f, 0.35f, 1.0f),
-                                 "%s仍在运行（PID %u），请先退出游戏。", selectedGameDescriptor().shortName, gamePid);
+                                 "%s is still running (PID %u), please exit the game first.\nThe", selectedGameDescriptor().shortName, gamePid);
         } else {
-            ::ImGui::TextWrapped("程序会先备份当前存档，再覆盖还原。请确认已暂停 Steam 云同步或了解冲突处理方式。");
+            ::ImGui::TextWrapped("program will first back up the current archive and then overwrite and restore it. Please make sure you have paused Steam Cloud Sync or learn how conflicts are handled.");
         }
         ::ImGui::Spacing();
         ::ImGui::BeginDisabled(!info || gameRunning);
-        if (::ImGui::Button("备份当前状态并还原", ImVec2(210, 0))) {
+        if (::ImGui::Button("Back up the current status and restore", ImVec2(210, 0))) {
             performRestoreSelectedBackup(app);
             ::ImGui::CloseCurrentPopup();
         }
         ::ImGui::EndDisabled();
         ::ImGui::SameLine();
-        if (::ImGui::Button("取消", ImVec2(100, 0))) ::ImGui::CloseCurrentPopup();
+        if (::ImGui::Button("Cancel", ImVec2(100, 0))) ::ImGui::CloseCurrentPopup();
         ::ImGui::EndPopup();
     }
 }
@@ -4834,11 +4841,11 @@ void renderApp(AppState& app) {
     ::ImGui::PushStyleColor(ImGuiCol_Text, ui::accent);
     ui::heading("TRUCK TOOLS", 23);
     ::ImGui::PopStyleColor();
-    ::ImGui::TextDisabled("欧卡2 / 美卡修改器");
+    ::ImGui::TextDisabled("ETS2 2 / ATS Modifier");
     ::ImGui::EndGroup();
     ::ImGui::SameLine(260);
     ::ImGui::BeginGroup();
-    ::ImGui::TextDisabled("目标游戏");
+    ::ImGui::TextDisabled("Target game");
     for (const GameId id : {GameId::Ets2, GameId::Ats}) {
         if (id == GameId::Ats) ::ImGui::SameLine();
         const auto& game = gameDescriptor(id);
@@ -4849,37 +4856,37 @@ void renderApp(AppState& app) {
     ::ImGui::SameLine(std::max(470.0f, ::ImGui::GetWindowWidth() - 345.0f));
     ::ImGui::BeginGroup();
     ui::textf(attached ? ui::success : ui::muted,
-        attached ? "已连接游戏" : "尚未连接游戏");
+        attached ? "is connected to the game" : "Not connected to game");
     if (attached) {
-        if (::ImGui::Button("断开连接", ImVec2(110, 34))) detachGame(app);
-    } else if (ui::primaryButton("附加游戏", ImVec2(110, 34))) attachGame(app);
+        if (::ImGui::Button("disconnected", ImVec2(110, 34))) detachGame(app);
+    } else if (ui::primaryButton("Attach game", ImVec2(110, 34))) attachGame(app);
     ::ImGui::SameLine();
-    if (::ImGui::Button("刷新检测", ImVec2(100, 34))) {
+    if (::ImGui::Button("Refresh detection", ImVec2(100, 34))) {
         DWORD pid = 0;
         std::wstring exe;
         if (findProcess(selectedProcessName(), &pid, &exe)) {
             if (!attached) {
-                app.procStatus = fmt("发现 %s (PID %u) —— 点「附加游戏」开始", W2U(exe).c_str(), pid);
+                app.procStatus = fmt("found %s (PID %u) - click \"Additional Games\" to start", W2U(exe).c_str(), pid);
                 logLine(app.procStatus);
             }
         } else {
-            app.procStatus = fmt("没有找到 %s，请先启动游戏", W2U(selectedProcessName()).c_str());
+            app.procStatus = fmt("%s not found, please start the game first", W2U(selectedProcessName()).c_str());
             logLine(app.procStatus);
         }
     }
     ::ImGui::EndGroup();
     ::ImGui::Spacing();
-    const char* guard = !attached ? "联机状态待检测" :
-        (!app.mpHits.empty() ? "TruckersMP 联机中" :
-         (app.mpBlocks ? "联机保护：写入受限" :
-          (isConvoyCheckEnabled() ? "未检测到联机" : "未检测 Convoy")));
+    const char* guard = !attached ? "online status to be detected" :
+        (!app.mpHits.empty() ? "TruckersMP is online" :
+         (app.mpBlocks ? "Online protection: writing restricted" :
+          (isConvoyCheckEnabled() ? "No connection detected" : "Convoy not detected")));
     ui::textf(app.mpBlocks ? ui::accent : ui::muted, "%s  /  %s", guard,
-        isAdmin() ? "管理员权限" : "普通权限");
+        isAdmin() ? "Administrator" : "Normal permissions");
     if (::ImGui::IsItemHovered())
         ::ImGui::SetTooltip("%s\n%s", app.procStatus.c_str(), app.memInfo.c_str());
     if (!supportsVerifiedStructures(selectedGame())) {
         ui::next(330);
-        ui::textf(ui::accent, "当前版本未验证，结构化写入已禁用");
+        ui::textf(ui::accent, "The current version is not verified, structured writing is disabled");
     }
     ::ImGui::EndChild();
     ::ImGui::PopStyleVar(2);
@@ -4899,10 +4906,10 @@ void renderApp(AppState& app) {
     ::ImGui::TextDisabled("WORKSPACE");
     ::ImGui::Dummy(ImVec2(0, 12));
     const int order[] = {1, 0, 2, 4, 3, 5};
-    const char* labels[] = {"资金与经验", "车辆调校", "传送与相机", "内存扫描", "存档与备份", "设置与说明"};
-    const char* subtitles[] = {"资金与成长，清晰可控。", "每一程，都在掌控之中。",
-        "去想去的地方，换一个视角。", "从数值变化中，找到目标。",
-        "保存每一次出发，也为改变留条退路。", "让工具适应你的习惯。"};
+    const char* labels[] = {"Money and XP", "Vehicle tuning", "Teleport and camera", "Memory scanner", "Saves and backups", "Settings and help"};
+    const char* subtitles[] = {"Capital and growth are clear and controllable.", "Your truck, your settings.",
+        "Go where you want to go and change your perspective.", "Find the target from the numerical changes.",
+        "saves every departure and leaves a way out for changes.", "Adapt the tool to your habits."};
     const char* sections[] = {"ECONOMY", "VEHICLE CONTROL", "WORLD & CAMERA", "MEMORY SCANNER", "SAVE LIBRARY", "PREFERENCES"};
     if (app.activeTab < 0 || app.activeTab > 5) app.activeTab = 1;
     for (const int page : order) {
@@ -4916,7 +4923,7 @@ void renderApp(AppState& app) {
     if (::ImGui::GetContentRegionAvail().y > 60) {
         ::ImGui::SetCursorPosY(::ImGui::GetWindowHeight() - 67);
         ::ImGui::TextDisabled(selectedGame() == GameId::Ets2 ? "EUROPEAN ROADS" : "AMERICAN ROADS");
-        ::ImGui::TextDisabled("为下一程，做好准备。");
+        ::ImGui::TextDisabled("Ready for the next journey.");
     }
     ::ImGui::PopStyleVar();
     ::ImGui::EndChild();
@@ -4969,12 +4976,12 @@ void renderApp(AppState& app) {
         }
         ::ImGui::TableNextColumn();
         if (app.busy.load()) {
-            if (::ImGui::SmallButton("取消任务")) { app.cancel.store(true); logLine("已请求取消当前任务……"); }
+            if (::ImGui::SmallButton("Cancel task")) { app.cancel.store(true); logLine("has requested to cancel the current task..."); }
             ::ImGui::SameLine();
         }
-        if (::ImGui::SmallButton(showFullLog ? "收起日志" : "运行日志")) showFullLog = !showFullLog;
+        if (::ImGui::SmallButton(showFullLog ? "Close log" : "Session log")) showFullLog = !showFullLog;
         ::ImGui::SameLine();
-        if (::ImGui::SmallButton("清空")) logClear();
+        if (::ImGui::SmallButton("Clear")) logClear();
         ::ImGui::EndTable();
     }
     if (!logFileError().empty()) ui::text(ImVec4(1, .4f, .3f, 1), logFileError().c_str());

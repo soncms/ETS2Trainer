@@ -10,7 +10,7 @@ std::vector<TunerTestItem> runFuelTankTests() {
     FuelTankMod mod,again;std::string error;
     if(std::size(kFuelTankDefinitions)==0) {
         check("fuel-missing-local-catalog-refuses-generation",!buildFuelTankMod(path,5000,&mod,&error)&&mod.archive.empty()&&
-            error.find("未包含本地原厂底盘定义")!=std::string::npos,error);
+            error.find("does not contain")!=std::string::npos,error);
         check("fuel-missing-local-catalog-has-no-electric-support",!fuelTankIsElectric("/def/vehicle/truck/scania.s_2024e/chassis/4x2.sii"));
         return tests;
     }

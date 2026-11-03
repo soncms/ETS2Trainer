@@ -113,7 +113,7 @@ struct AppState {
     std::vector<std::wstring>     mpHits;
     bool                          mpBlocks = false;   // TruckersMP / 官方 Convoy
     std::string                   mpDetail;           // 联机判定依据
-    std::string                   procStatus = "未附加：请先启动游戏，再点「附加游戏」";
+    std::string                   procStatus = "is not attached: please start the game first, then click \"Attach Game\"";
     bool                          attached = false;
     std::string                   memInfo;
     TelemetrySnapshot telemetry;
@@ -165,17 +165,17 @@ struct AppState {
     bool  engineDraftSourceRaiseLimit = false;
     DWORD engineDraftPid = 0;
     GameId engineDraftGame = GameId::Ets2;
-    std::string engineStatus = "未启用。动力调节直接改写发动机数据，不扫描内存。";
+    std::string engineStatus = "is not enabled. Power adjustment directly rewrites engine data without scanning the memory.";
     // 上次运行留下的「写入值 / 原厂基准」，用于防止跨进程重启后把放大值当原厂值
     std::string engineStateText;
     std::string engineStateEts2;  // 历史 engine_state 仅属于欧卡。
     std::string engineStateAts;   // 美卡独立恢复凭据。
-    std::string moneyStatus = "还没扫描。先在游戏里看一眼现金，填到「当前数值」再扫描。";
-    std::string xpStatus = "还没扫描。经验在游戏里是 32 位整数。";
-    std::string fuelStatus = "未启用。进入驾驶界面后直接勾选「无限油量」。";
-    std::string electricStatus = "未启用。驾驶电动车时勾选「无限电量」。";
-    std::string damageStatus = "未启用。进入驾驶界面后直接勾选「车辆无损」。";
-    std::string scanStatus = "未扫描";
+    std::string moneyStatus = "has not been scanned yet. First take a look at the cash in the game, fill in the \"current value\" and then scan.";
+    std::string xpStatus = "has not been scanned yet. Experience is a 32-bit integer in the game.";
+    std::string fuelStatus = "is not enabled. After entering the driving interface, directly check \"Unlimited Fuel\".";
+    std::string electricStatus = "is not enabled. Check \"Unlimited battery\" when driving an electric car.";
+    std::string damageStatus = "is not enabled. After entering the driving interface, directly check \"Vehicle No Damage\".";
+    std::string scanStatus = "not scanned";
     // 收藏点按游戏分开保存，切换游戏不会把欧卡2 的收藏带进美卡（反之亦然）。
     std::string teleportSpotsEts2;
     std::string teleportSpotsAts;
@@ -189,7 +189,7 @@ struct AppState {
     uint64_t    locatedEconomy = 0;        // 经济对象
     int64_t     locatedXpValue = 0;
     std::string locatedXpDetail;
-    std::string locateStatus = "未定位。填好游戏里的当前金额后点「直接改钱」，程序会自动定位再写入，全程免锁定。";
+    std::string locateStatus = "is not located. After filling in the current amount in the game, click \"Change Money Directly\", and the program will automatically locate and write it, without locking the entire process.";
     // 「直接改钱 / 直接改经验」一键流程：未定位时先启动定位，定位成功后由
     // 工作线程自动执行写入（只在定位线程内读写，界面线程启动前设置）。
     bool        autoWriteMoneyAfterLocate = false;
@@ -232,7 +232,7 @@ struct AppState {
     int         flyConsole = -1;     // config.cfg 里的 g_console
     std::string flySpeedSaved;       // config.cfg 里的 g_flyspeed
     char        flySpeed[16] = "100";
-    std::string flyNote = "还没检查 config.cfg。";
+    std::string flyNote = "Haven't checked config.cfg yet.";
     CameraBindings camera;
     bool        cameraLoaded = false;
 
@@ -244,14 +244,14 @@ struct AppState {
     char        coordInput[64] = {0};
     char        spotName[32] = {0};
     std::vector<std::pair<std::string, std::string>> teleportSpots;  // 名称 -> goto 目标
-    std::string teleportNote = "点「读取城市列表」从存档里取城市名，或直接填城市名 / 坐标。";
+    std::string teleportNote = "Click \"Read City List\" to get the city name from the archive, or fill in the city name/coordinates directly.";
 
     // ---------- 联运模式（Convoy）----------
     // 0 = 严格（联机时全部禁用）；1 = 联运模式（联机时只放开"不写内存"的功能）
     int           mpPolicy = 1;
     bool          checkConvoy = false;  // 是否检测官方联运（默认关闭）
     ConvoySession convoy;
-    std::string   convoyNote = "点「刷新联机状态」读取 game.log.txt 的会话与玩家列表。";
+    std::string   convoyNote = "Click \"Refresh Online Status\" to read the session and player list in game.log.txt.";
 
     // ---------- 存档 ----------
     std::vector<SaveSlot>   slots;
@@ -265,7 +265,7 @@ struct AppState {
     std::set<int> scanSelection;
     char          saveMoney[32] = {0};
     char          saveXp[32] = {0};
-    std::string   saveNote = "选中一个存档后，这里会显示它的数值情况。";
+    std::string   saveNote = "After selecting an archive, its numerical value will be displayed here.";
     TextValues    slotValues;
     bool          showBackupDialog = false;
     bool          showCopyDialog = false;

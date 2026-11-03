@@ -500,7 +500,7 @@ std::vector<TunerTestItem> runEngineTunerTests() {
                 !closeTo(values.copyB, 3800.0f) || !closeTo(values.rpmLimit, 2000.0f)) {
                 ok = false;
                 detail = "部分写入失败后未回滚：" + dumpValues(values);
-            } else if (error.find("回滚") == std::string::npos && error.find("失败") == std::string::npos) {
+            } else if (error.find("rollback") == std::string::npos && error.find("failed") == std::string::npos) {
                 ok = false;
                 detail = "错误信息未说明失败原因: " + error;
             } else {
@@ -519,7 +519,7 @@ std::vector<TunerTestItem> runEngineTunerTests() {
                 if (!closeTo(values.torque, 3800.0f)) {
                     ok = false;
                     detail = "回读失败后未回滚：" + dumpValues(values);
-                } else if (secondError.find("回读") == std::string::npos) {
+                } else if (secondError.find("Readback") == std::string::npos) {
                     ok = false;
                     detail = "错误信息未指出回读失败: " + secondError;
                 } else {
@@ -721,7 +721,7 @@ std::vector<TunerTestItem> runEngineTunerTests() {
             rig.memory->setUsable(false);   // 模拟游戏进程关闭
             rig.tuner.maintenance(nullptr);
             const bool stopped = !rig.tuner.active();
-            const bool explained = rig.tuner.status().find("进程已关闭") != std::string::npos;
+            const bool explained = rig.tuner.status().find("game process has been closed") != std::string::npos;
             const bool noFurtherWrites = rig.memory->writes() == writesBefore;
             ok = stopped && explained && noFurtherWrites;
             detail = ok ? "进程失效后停止保持、给出提示且不再写入"
@@ -742,7 +742,7 @@ std::vector<TunerTestItem> runEngineTunerTests() {
             rig.memory->failWritesTo(kEngineA + engine_runtime::kTorque, true);
             rig.tuner.restoreAndDetach();
             const std::string record = rig.tuner.exportState();
-            ok = !record.empty() && rig.tuner.status().find("原值未恢复") != std::string::npos;
+            ok = !record.empty() && rig.tuner.status().find("Original values not restored") != std::string::npos;
         }
         add("还原失败后仍可导出原厂基准", ok,
             ok ? "恢复记录保留，下一次启动可核对基准" : "恢复失败时记录丢失：" + error);
@@ -764,7 +764,7 @@ std::vector<TunerTestItem> runEngineTunerTests() {
             block = true;
             rig.tuner.maintenance(&error);
             const std::string status = rig.tuner.status();
-            ok = !rig.tuner.active() && status.find("未能恢复") != std::string::npos &&
+            ok = !rig.tuner.active() && status.find("cannot be restored") != std::string::npos &&
                  !rig.tuner.exportState().empty();
         }
         add("联机守卫恢复失败真实报告", ok,
@@ -1080,7 +1080,7 @@ std::vector<TunerTestItem> runEngineTunerTests() {
             if (parseXpTarget("2147483647", &value, &error) || value != -12345) {
                 ok = false;
                 detail = "INT32_MAX 未被业务上限拒绝（或写出了输出值）";
-            } else if (error.find("上限") == std::string::npos) {
+            } else if (error.find("upper limit") == std::string::npos) {
                 ok = false;
                 detail = "INT32_MAX 的拒绝原因不是业务上限：" + error;
             }

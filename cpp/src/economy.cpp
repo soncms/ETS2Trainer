@@ -58,27 +58,27 @@ bool atsTypeMatches(const ProcessMemory& memory, uint64_t object, uint64_t vtabl
 bool probeAtsBank(const ProcessMemory& memory, uint64_t address, ProbeResult* out) {
     ProbeResult r; r.address = address; r.maxScore = 7;
     auto reject = [&](const char* reason) { r.detail = reason; if (out) *out = r; return false; };
-    if (address < ats_economy_offsets::kMoney) return reject("美卡金额地址无效");
+    if (address < ats_economy_offsets::kMoney) return reject("ATS amount address is invalid");
     r.object = address - ats_economy_offsets::kMoney;
     int64_t fixed = 0, loan = 0; float ratio = 0, severity = 0;
     uint8_t enabled = 0;
     if (!atsTypeMatches(memory, r.object, layoutProfile(GameId::Ats).bankVtableRva))
-        return reject("美卡银行对象类型不匹配");
+        return reject("ATS Bank object type does not match");
     if (!readI64(memory,address,&r.value) || r.value < -1000000000000LL || r.value > 1000000000000LL)
-        return reject("美卡银行金额读取失败或超出范围");
+        return reject("ATS Bank amount reading failed or exceeded the range");
     if (!readI64(memory,r.object+0x18,&fixed) || fixed < 0 || fixed > 1000000)
-        return reject("美卡银行免赔额读取失败或超出范围");
+        return reject("ATS Bank deductible reading failed or exceeded the range");
     if (!readF32(memory,r.object+0x20,&ratio) || ratio < 0 || ratio > 1)
-        return reject("美卡银行共保比例读取失败或超出 0～1");
+        return reject("The reading of the co-insurance ratio of ATS Bank failed or exceeded 0~1");
     // accident_severity is accumulated across accidents, not a normalized ratio.
     // Live ATS reached 1.69; only finite nonnegative values are required here.
     if (!readF32(memory,r.object+0x24,&severity) || severity < 0)
-        return reject("美卡银行事故累计值无效（必须有限且非负）");
+        return reject("The accumulated value of ATS Bank accidents is invalid (must be limited and non-negative)");
     if (!memory.read(r.object+0x50,&enabled,1) || enabled > 1)
-        return reject("美卡银行 App 标志无效");
+        return reject("ATS Bank App logo is invalid");
     if (!readI64(memory,r.object+0x58,&loan) || loan < 0 || loan > 1000000000)
-        return reject("美卡银行贷款额度读取失败或超出范围");
-    r.score = 7; r.detail = "美卡银行类型、金额、免赔额、共保、事故、贷款和 App 标志核对通过";
+        return reject("ATS Bank loan limit reading failed or exceeded the range");
+    r.score = 7; r.detail = "ATS Bank type, amount, deductible, co-insurance, accident, loan and App logo were verified and passed";
     if(out) *out=r;
     return true;
 }
@@ -97,7 +97,7 @@ bool probeAtsEconomy(const ProcessMemory& memory, uint64_t address, ProbeResult*
         int32_t skill=0;
         if(!readI32(memory,r.object+ats_economy_offsets::kSkills+4*i,&skill) || skill<0 || skill>6) return false;
     }
-    r.value=xp; r.score=8; r.detail="美卡经济类型、银行引用、经验、六项技能与游戏时间核对通过";
+    r.value=xp; r.score=8; r.detail="ATS economic type, bank reference, experience, six skills and game time were verified and passed";
     if(out) *out=r;
     return true;
 }
@@ -118,9 +118,9 @@ bool probeBankObject(const ProcessMemory& memory, uint64_t moneyAddress, ProbeRe
     // 金额本身：允许为负（欠款），但必须在合理量级内
     if (money >= -1000000000000LL && money <= 1000000000000LL) {
         result.score += 2;
-        detail += "金额量级正常";
+        detail += "The amount is normal";
     } else {
-        detail += "金额量级异常";
+        detail += "Abnormal amount amount";
     }
 
     const uint64_t bank = result.object;
@@ -128,47 +128,47 @@ bool probeBankObject(const ProcessMemory& memory, uint64_t moneyAddress, ProbeRe
     if (readF32(memory, bank + economy_offsets::kBankCoinsuranceFixed, &coinsuranceFixed) &&
         coinsuranceFixed >= 0.0f && coinsuranceFixed <= 100000.0f) {
         result.score += 1;
-        detail += " · 免赔额正常";
+        detail += " · Deductible is normal";
     } else {
-        detail += " · 免赔额异常";
+        detail += " · Abnormal deductible";
     }
     if (readF32(memory, bank + economy_offsets::kBankCoinsuranceRatio, &coinsuranceRatio) &&
         coinsuranceRatio >= 0.0f && coinsuranceRatio <= 100.0f) {
         result.score += 1;
         if (coinsuranceRatio <= 1.0f) result.score += 1;  // 0~1 更符合共保比例语义
-        detail += " · 共保比例正常";
+        detail += " · Co-insurance ratio is normal";
     } else {
-        detail += " · 共保比例异常";
+        detail += " · Abnormal co-insurance ratio";
     }
     if (readF32(memory, bank + economy_offsets::kBankLoanLimit, &loanLimit) && loanLimit >= 0.0f &&
         loanLimit <= 100000000.0f) {
         result.score += 1;
-        detail += " · 贷款额度正常";
+        detail += " · Loan amount is normal";
     } else {
-        detail += " · 贷款额度异常";
+        detail += " · Abnormal loan amount";
     }
     if (readF32(memory, bank + economy_offsets::kBankOverdraft, &overdraft) && overdraft >= 0.0f &&
         overdraft <= 10000000.0f) {
         result.score += 1;
-        detail += " · 透支额正常";
+        detail += " · Overdraft amount is normal";
     } else {
-        detail += " · 透支额异常";
+        detail += " · Abnormal overdraft amount";
     }
 
     int32_t overdraftTimer = 0;
     if (readI32(memory, bank + economy_offsets::kBankOverdraftTimer, &overdraftTimer) &&
         overdraftTimer >= 0 && overdraftTimer <= 100000000) {
-        detail += " · 计时正常";
+        detail += " · Timing is normal";
     } else {
-        detail += " · 计时异常";
+        detail += " · Timing abnormality";
     }
 
     int64_t appEnabled = 0;
     if (readI64(memory, bank + economy_offsets::kBankAppEnabled, &appEnabled) &&
         plausibleSmallCounter(appEnabled)) {
-        detail += " · 银行 App 标志正常";
+        detail += " · Bank App logo is normal";
     } else {
-        detail += " · 银行 App 标志异常";
+        detail += " · Bank App logo is abnormal";
     }
 
     result.detail = detail;
@@ -199,7 +199,7 @@ bool probeEconomyObject(const ProcessMemory& memory, uint64_t xpAddress, ProbeRe
     if (!readI32(memory, economy + economy_offsets::kEconomySaveGameVersion, &version) ||
         version < 1 || version > 10000) {
         result.score = 0;
-        result.detail = "存档版本字段不合理（疑似偏移错误）";
+        result.detail = "The archive version field is unreasonable (suspected offset error)";
         if (out) *out = result;
         return false;
     }
@@ -208,7 +208,7 @@ bool probeEconomyObject(const ProcessMemory& memory, uint64_t xpAddress, ProbeRe
     if (!readI64(memory, economy + economy_offsets::kEconomyBankRef, &bankRefCheck) ||
         !isCanonical(bankRefCheck)) {
         result.score = 0;
-        result.detail = "bank 引用不是有效指针（疑似偏移错误）";
+        result.detail = "bank reference is not a valid pointer (suspected offset error)";
         if (out) *out = result;
         return false;
     }
@@ -216,12 +216,12 @@ bool probeEconomyObject(const ProcessMemory& memory, uint64_t xpAddress, ProbeRe
     std::string detail;
     if (xp >= 0 && xp <= 1000000000) {
         result.score += 2;
-        detail += "经验值合理";
+        detail += "The experience value is reasonable";
     } else {
-        detail += "经验值异常";
+        detail += "Abnormal experience value";
     }
     result.score += 1;
-    detail += " · 存档版本字段合理";
+    detail += " · The archive version field is reasonable";
 
     // 紧跟在经验后面的 6 个技能点（adr/long_dist/heavy/fragile/urgent/mechanical）
     int skillOk = 0;
@@ -236,29 +236,29 @@ bool probeEconomyObject(const ProcessMemory& memory, uint64_t xpAddress, ProbeRe
     }
     if (skillOk == economy_offsets::kEconomySkillCount) {
         result.score += 3;
-        detail += " · 6 项技能点全部合理";
+        detail += " · All 6 skill points are reasonable";
     } else if (skillOk >= economy_offsets::kEconomySkillCount - 2) {
         result.score += 1;
-        detail += fmt(" · 技能点 %d/6 合理", skillOk);
+        detail += fmt(" · Skill points %d/6 reasonable", skillOk);
     } else {
-        detail += fmt(" · 技能点 %d/6 合理", skillOk);
+        detail += fmt(" · Skill points %d/6 reasonable", skillOk);
     }
     if (skillSum > 0) {
         result.score += 1;  // 非全零更像真实存档（新档可能全零，故不强制）
-        detail += " · 技能点非全零";
+        detail += " · Skill points are not all zero";
     }
 
     // bank 引用已在硬性条件里校验通过，这里只记分不重复判定
     result.score += 1;
-    detail += " · 银行引用合法";
+    detail += " · Bank reference is legal";
 
     int32_t gameTimeSecs = 0;
     if (readI32(memory, economy + economy_offsets::kEconomyGameTimeSecs, &gameTimeSecs) &&
         gameTimeSecs >= 0 && gameTimeSecs <= 2000000000) {
         result.score += 1;
-        detail += " · 游戏时间合理";
+        detail += " · Reasonable gaming time";
     } else {
-        detail += " · 游戏时间异常";
+        detail += " · Abnormal game time";
     }
 
     result.detail = detail;
@@ -406,28 +406,28 @@ bool writeBankMoneyVerified(const ProcessMemory& memory, uint64_t moneyAddress,
     // 1) 写入前重新校验 bank 结构：换存档/读档后旧地址可能已被复用
     ProbeResult probe;
     if (!probeBankObject(memory, moneyAddress, &probe)) {
-        if (error) *error = "bank 结构校验未通过，已拒绝写入（可能已换存档或重载，请重新定位）";
+        if (error) *error = "bank structure verification failed and writing has been refused (the archive may have been changed or reloaded, please relocate)";
         return false;
     }
     // 2) 对象身份比对：校验出的对象基址必须与定位时记录的一致
     if (probe.object != expectedBank) {
-        if (error) *error = "bank 对象身份不一致（地址疑似被复用），已拒绝写入";
+        if (error) *error = "bank object identity is inconsistent (address is suspected to be reused), writing has been refused";
         return false;
     }
     // 3) 目标金额安全范围（允许负值＝欠款）
     if (value < kMoneyMin || value > kMoneyMax) {
-        if (error) *error = fmt("目标金额超出安全范围（%s ~ %s）",
+        if (error) *error = fmt("The target amount exceeds the safe range (%s ~ %s)",
                                 formatInt(kMoneyMin).c_str(), formatInt(kMoneyMax).c_str());
         return false;
     }
     // 4) 写入 + 回读比对
     if (!memory.write(moneyAddress, &value, sizeof(value))) {
-        if (error) *error = "写入失败（地址可能已失效，请重新定位）";
+        if (error) *error = "Writing failed (the address may have expired, please relocate)";
         return false;
     }
     int64_t readBack = 0;
     if (!memory.read(moneyAddress, &readBack, sizeof(readBack)) || readBack != value) {
-        if (error) *error = "回读校验失败（写入未生效）";
+        if (error) *error = "Readback verification failed (write does not take effect)";
         return false;
     }
     return true;
@@ -443,27 +443,27 @@ bool writeEconomyExperienceVerified(const ProcessMemory& memory, uint64_t xpAddr
     // 1) 写入前重新校验经济对象结构（存档版本 / bank 引用 / 技能点布局）
     ProbeResult probe;
     if (!probeEconomyObject(memory, xpAddress, &probe)) {
-        if (error) *error = "经济对象结构校验未通过，已拒绝写入（可能已换存档或重载，请重新定位）";
+        if (error) *error = "The economic object structure verification failed and writing has been refused (the archive may have been changed or reloaded, please relocate)";
         return false;
     }
     // 2) 对象身份比对：校验出的对象基址必须与定位时记录的一致
     if (probe.object != expectedEconomy) {
-        if (error) *error = "经济对象身份不一致（地址疑似被复用），已拒绝写入";
+        if (error) *error = "The identity of the economic object is inconsistent (the address is suspected to be reused) and writing has been refused.";
         return false;
     }
     // 3) 经验安全范围
     if (value < kXpMin || value > kXpMax) {
-        if (error) *error = fmt("目标经验超出安全范围（0 ~ %s）", formatInt(kXpMax).c_str());
+        if (error) *error = fmt("The target experience exceeds the safe range (0 ~ %s)", formatInt(kXpMax).c_str());
         return false;
     }
     // 4) 写入 + 回读比对
     if (!memory.write(xpAddress, &value, sizeof(value))) {
-        if (error) *error = "写入失败（地址可能已失效，请重新定位）";
+        if (error) *error = "Writing failed (the address may have expired, please relocate)";
         return false;
     }
     int32_t readBack = 0;
     if (!memory.read(xpAddress, &readBack, sizeof(readBack)) || readBack != value) {
-        if (error) *error = "回读校验失败（写入未生效）";
+        if (error) *error = "Readback verification failed (write does not take effect)";
         return false;
     }
     return true;

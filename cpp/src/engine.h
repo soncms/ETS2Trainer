@@ -303,7 +303,7 @@ private:
     EngineFieldValues remoteWritten_;
     EngineFieldValues remoteBase_;
 
-    std::string status_ = "未启用";
+    std::string status_ = "not enabled";
     uint64_t guardCheckedAt_ = 0;
     uint64_t guardIntervalMs_ = 5000;
 

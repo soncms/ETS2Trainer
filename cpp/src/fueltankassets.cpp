@@ -33,7 +33,7 @@ struct FuelTankModAssets::Impl {
         if(h==INVALID_HANDLE_VALUE||!GetFileInformationByHandle(h,&info)||
            !(info.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(info.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)) {
             if(h!=INVALID_HANDLE_VALUE)CloseHandle(h);
-            throw std::runtime_error("Mod 目录不可用、正在变化或含重解析点");
+            throw std::runtime_error("Mod directory is unavailable, changing or contains reparse points");
         }
         parents.push_back(h);
     }
@@ -44,35 +44,35 @@ bool FuelTankModAssets::install(const std::wstring& gameHome,const std::string& 
     const std::vector<std::uint8_t>& bytes,std::string* error,std::function<void()> guard) {
     if(error)error->clear();
     try {
-        needFuelAsset(impl_->file==INVALID_HANDLE_VALUE,"Mod 安装器不能重复使用");
+        needFuelAsset(impl_->file==INVALID_HANDLE_VALUE,"Mod installer cannot be reused");
         needFuelAsset(fileName.rfind("ets2trainer_fuel_",0)==0 && fileName.size()>25 && fileName.size()<100 &&
             fileName.substr(fileName.size()-4)==".scs" && fileName.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_.")==std::string::npos,
-            "油箱 Mod 文件名无效");
-        needFuelAsset(!bytes.empty() && bytes.size()<=4u*1024u*1024u,"油箱 Mod 体积无效");
+            "Fuel Tank Mod file name is invalid");
+        needFuelAsset(!bytes.empty() && bytes.size()<=4u*1024u*1024u,"Fuel tank Mod volume is invalid");
         if(guard)guard();
         const fs::path home(gameHome);
-        needFuelAsset(home.is_absolute()&&home.lexically_normal()==home,"游戏文档目录必须是规范绝对路径");
+        needFuelAsset(home.is_absolute()&&home.lexically_normal()==home,"The game document directory must be a canonical absolute path");
         fs::path parent=home.root_path();impl_->holdDirectory(parent);
         for(const auto& part:home.relative_path()){parent/=part;impl_->holdDirectory(parent);}
         const auto mod=home/L"mod";
-        if(!CreateDirectoryW(mod.c_str(),nullptr))needFuelAsset(GetLastError()==ERROR_ALREADY_EXISTS,"无法创建 Mod 目录");
+        if(!CreateDirectoryW(mod.c_str(),nullptr))needFuelAsset(GetLastError()==ERROR_ALREADY_EXISTS,"Unable to create Mod directory");
         impl_->holdDirectory(mod);
         if(guard)guard();
         const auto target=mod/fs::path(fileName);
         impl_->file=CreateFileW(target.c_str(),GENERIC_READ|GENERIC_WRITE|DELETE,FILE_SHARE_READ,nullptr,CREATE_NEW,
             FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OPEN_REPARSE_POINT,nullptr);
         if(impl_->file==INVALID_HANDLE_VALUE) {
-            needFuelAsset(GetLastError()==ERROR_FILE_EXISTS||GetLastError()==ERROR_ALREADY_EXISTS,"无法创建油箱 Mod 文件");
+            needFuelAsset(GetLastError()==ERROR_FILE_EXISTS||GetLastError()==ERROR_ALREADY_EXISTS,"Unable to create fuel tank Mod file");
             impl_->file=CreateFileW(target.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,
                 FILE_FLAG_OPEN_REPARSE_POINT,nullptr);
             BY_HANDLE_FILE_INFORMATION info{};
             needFuelAsset(impl_->file!=INVALID_HANDLE_VALUE&&GetFileInformationByHandle(impl_->file,&info)&&
-                !(info.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)),"无法稳定读取已有油箱 Mod");
-            needFuelAsset(sameFuelAsset(impl_->file,bytes),"已有同名 Mod 的内容不同，已保留原文件");
+                !(info.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)),"cannot stably read the existing fuel tank Mod");
+            needFuelAsset(sameFuelAsset(impl_->file,bytes),"There is already a Mod with the same name but the content is different and the original file has been retained.");
         } else {
             impl_->created=true;DWORD written=0;
             needFuelAsset(WriteFile(impl_->file,bytes.data(),(DWORD)bytes.size(),&written,nullptr)&&written==bytes.size()&&
-                FlushFileBuffers(impl_->file)&&sameFuelAsset(impl_->file,bytes),"油箱 Mod 写入或回读校验失败");
+                FlushFileBuffers(impl_->file)&&sameFuelAsset(impl_->file,bytes),"Fuel tank Mod write or readback verification failed");
         }
         if(guard)guard();
         return true;
@@ -87,7 +87,7 @@ bool FuelTankModAssets::rollback(std::string* error) {
     if(impl_->file==INVALID_HANDLE_VALUE||!impl_->created||impl_->committed)return true;
     FILE_DISPOSITION_INFO info{TRUE};
     if(!SetFileInformationByHandle(impl_->file,FileDispositionInfo,&info,sizeof(info))) {
-        if(error)*error="未能回滚新油箱 Mod，请检查文档目录 mod 文件夹";
+        if(error)*error="Failed to roll back new fuel tank mod, please check the documentation directory mod folder";
         return false;
     }
     CloseHandle(impl_->file);impl_->file=INVALID_HANDLE_VALUE;impl_->created=false;return true;

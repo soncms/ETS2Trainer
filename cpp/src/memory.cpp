@@ -132,9 +132,9 @@ bool ProcessMemory::openWithAccess(DWORD pid, const std::string& name, std::stri
         DWORD err = ::GetLastError();
         if (error) {
             *error = (err == 5)
-                         ? fmt("打开进程 %s (PID %u) 被拒绝(错误 5)。请用管理员权限运行本程序。",
+                         ? fmt("Open process %s (PID %u) rejected (Error 5). Please run this program with administrator rights.",
                                name.c_str(), pid)
-                         : fmt("打开进程 %s (PID %u) 失败，Win32 错误码 %lu", name.c_str(), pid,
+                         : fmt("Failed to open process %s (PID %u), Win32 error code %lu", name.c_str(), pid,
                                (unsigned long)err);
         }
         return false;
@@ -710,7 +710,7 @@ void Freezer::run() {
         {
             std::lock_guard<std::mutex> lock(guardMutex_);
             if (guard_) reason = guard_();
-            blockedReason_ = reason.empty() ? std::string("未启用") : reason;
+            blockedReason_ = reason.empty() ? std::string("not enabled") : reason;
         }
         std::vector<std::pair<uint64_t, std::pair<VType, double>>> items;
         {
