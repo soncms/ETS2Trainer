@@ -156,11 +156,14 @@ struct AppState {
     bool  autoFuelLock = false;
     bool  autoElectricLock = false;
     bool  autoDamageLock = false;
-    int   enginePowerOption = 0;   // 0=原厂, 1=1.25×, 2=1.50×, 3=2.00×
+    int   enginePowerOption = 0;   // 0=stock, 1=1.25x, 2=1.50x, 3=2x, 4=3x, 5=4x, 6=5x
     bool  engineRaiseLimit = false;
+    int engineRpmPercent = 0;
     // Unapplied UI draft; selection never writes to the game until Apply is pressed.
     int   engineDraftOption = 0;
     bool  engineDraftRaiseLimit = false;
+    int engineDraftRpmPercent = 0;
+    int engineDraftSourceRpmPercent = -1;
     int   engineDraftSourceOption = -1;
     bool  engineDraftSourceRaiseLimit = false;
     DWORD engineDraftPid = 0;
@@ -377,7 +380,7 @@ void startLocateEconomy(AppState& app);
 // directModifyMoney / directModifyXp / startLocateEconomy / clearLocatedEconomy，
 // 仅供 renderMoneyTab 内部使用。
 // option: 0=恢复原厂, 1=1.25×, 2=1.50×, 3=2.00×
-void applyEnginePower(AppState& app, int option, bool raiseLimit);
+void applyEnginePower(AppState& app, int option, bool raiseLimit, int rpmPercent = 10);
 
 // 无界面自检：确保每个功能面板绑定到自己的输入与锁定状态。
 bool validatePanelBindings(std::string* error);

@@ -4,6 +4,7 @@
 // 覆盖：倍率不叠加、换发动机对象互相恢复、RPM 开关立即恢复、超大扭矩、
 //       写入失败回滚、跨进程重启叠加保护、对象失效/复用、联机闸门、并发。
 #include "enginetest.h"
+#include <limits>
 
 #include "engine.h"
 #include "saves.h"
@@ -225,6 +226,55 @@ std::vector<TunerTestItem> runEngineTunerTests() {
     auto add = [&items](const std::string& name, bool ok, const std::string& detail) {
         items.push_back({name, ok, detail});
     };
+
+    {
+        Rig rig;
+        rig.memory->mapEngine(kEngineA, kVolvo);
+        rig.resolver->setObject(kEngineA);
+        std::string error;
+        bool ok = rig.tuner.applyWithRpmIncrease(5.0f, 50.0f, &error);
+        auto values = rig.memory->read(kEngineA);
+        add("5x torque and +50% RPM use original baselines", ok &&
+            closeTo(values.torque,19000) && closeTo(values.copyA,18867) &&
+            closeTo(values.copyB,19000) && closeTo(values.rpmLimit,3000) &&
+            closeTo(values.rpmLimitNeutral,3000), error);
+        ok = rig.tuner.maintenance(&error);
+        values = rig.memory->read(kEngineA);
+        add("5x/+50% maintenance does not compound", ok &&
+            closeTo(values.torque,19000) && closeTo(values.rpmLimit,3000),error);
+        const std::string state = rig.tuner.exportState();
+        Rig restarted;
+        restarted.memory->mapEngine(kEngineA, {19000,18867,19000,500,3000,3000,346});
+        restarted.resolver->setObject(kEngineA);
+        restarted.tuner.importState(state);
+        ok = restarted.tuner.applyWithRpmIncrease(2.0f,25.0f,&error);
+        values = restarted.memory->read(kEngineA);
+        add("Restart preserves 5x/+50% recovery baseline", ok &&
+            closeTo(values.torque,7600) && closeTo(values.rpmLimit,2500), error);
+        ok = restarted.tuner.release(&error);
+        values = restarted.memory->read(kEngineA);
+        add("Restart restores original torque and RPM",ok && closeTo(values.torque,3800) &&
+            closeTo(values.rpmLimit,2000),error);
+        ok = rig.tuner.applyWithRpmIncrease(1.0f,37.0f,&error);
+        values = rig.memory->read(kEngineA);
+        add("RPM slider works independently at +37%",ok && closeTo(values.torque,3800) &&
+            closeTo(values.rpmLimit,2740),error);
+        const bool rejected = !rig.tuner.applyWithRpmIncrease(5.01f,50,&error) &&
+            !rig.tuner.applyWithRpmIncrease(2,50.01f,&error) &&
+            !rig.tuner.applyWithRpmIncrease(2,-1,&error) &&
+            !rig.tuner.applyWithRpmIncrease(2,std::numeric_limits<float>::quiet_NaN(),&error);
+        values = rig.memory->read(kEngineA);
+        add("Out-of-range tuning rejected without changing memory", rejected &&
+            closeTo(values.torque,3800) && closeTo(values.rpmLimit,2740),error);
+        ok = rig.tuner.applyWithRpmIncrease(2.0f,0.0f,&error);
+        values = rig.memory->read(kEngineA);
+        add("Zero RPM increase restores RPM while retaining torque tuning",ok &&
+            closeTo(values.torque,7600) && closeTo(values.rpmLimit,2000),error);
+        ok = rig.tuner.release(&error);
+        values = rig.memory->read(kEngineA);
+        add("Restore stock clears extended tuning",ok && closeTo(values.torque,3800) &&
+            closeTo(values.copyA,3773.4f) && closeTo(values.rpmLimit,2000),error);
+    }
 
     {
         const GameId previous=selectedGame(); setSelectedGame(GameId::Ats);
@@ -467,19 +517,19 @@ std::vector<TunerTestItem> runEngineTunerTests() {
             rig.memory->mapEngine(kEngineB, huge);
             rig.resolver->setObject(kEngineB);
             std::string secondError;
-            const bool rejected = !rig.tuner.apply(2.0f, false, &secondError);
+            const bool rejected = !rig.tuner.apply(4.0f, false, &secondError);
             const EngineFieldValues values = rig.memory->read(kEngineB);
             if (!rejected) {
                 ok = false;
-                detail = "40000 N·m 应被安全范围拒绝";
+                detail = "80000 N·m 应被安全范围拒绝";
             } else if (!closeTo(values.torque, 20000.0f, 0.5f)) {
                 ok = false;
                 detail = "被拒绝时不应改动内存：" + dumpValues(values);
             } else {
-                detail += "；40000 N·m 被拒绝且未写入";
+                detail += "；80000 N·m 被拒绝且未写入";
             }
         }
-        add("超大扭矩：14000 可恢复 / 40000 拒绝", ok, detail);
+        add("超大扭矩：14000 可恢复 / 80000 拒绝", ok, detail);
     }
 
     // ---------- 5. 写入失败与回读失败都要回滚 ----------

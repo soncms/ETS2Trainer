@@ -357,9 +357,9 @@ bool tunerClose(float a, float b, float tolerance) {
 
 // 写入安全范围：这里只是最后一道保险，正常路径另有「唯一对象 + 签名」约束。
 constexpr float kMinScale = 0.9f;
-constexpr float kMaxScale = 3.0f;
+constexpr float kMaxScale = 5.0f;
 constexpr float kMinWriteTorque = 50.0f;
-constexpr float kMaxWriteTorque = 25000.0f;
+constexpr float kMaxWriteTorque = 60000.0f;
 constexpr float kMinWriteRpm = 400.0f;
 constexpr float kMaxWriteRpm = 6000.0f;
 constexpr uint64_t kGuardIntervalMs = 5000;
@@ -553,6 +553,10 @@ void EngineTuner::restoreAndDetach() {
 }
 
 bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
+    return applyWithRpmIncrease(scale, raiseLimit ? 10.0f : 0.0f, error);
+}
+
+bool EngineTuner::applyWithRpmIncrease(float scale, float rpmPercent, std::string* error) {
     if (const std::string reason = structuralWriteBlockReason(); !reason.empty()) {
         if (error) *error = reason;
         return false;
@@ -563,9 +567,14 @@ bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
         return false;
     }
     if (!std::isfinite(scale) || scale < kMinScale || scale > kMaxScale) {
-        if (error) *error = "Power multiplier is outside the allowed range (0.9-3.0)";
+        if (error) *error = "Power multiplier is outside the allowed range (0.9-5.0)";
         return false;
     }
+    if (!std::isfinite(rpmPercent) || rpmPercent < 0.0f || rpmPercent > 50.0f) {
+        if (error) *error = "RPM increase must be between 0% and 50%";
+        return false;
+    }
+    const bool raiseLimit = rpmPercent > 0.0f;
     if (tunerClose(scale, 1.0f, 0.0001f) && !raiseLimit) {
         // 等价于“恢复原值”
         const bool hadActive = activeObject_ != 0;
@@ -573,6 +582,7 @@ bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
         active_ = false;
         scale_ = 1.0f;
         raiseLimit_ = false;
+        rpmIncreasePercent_ = 0.0f;
         if (hadActive) bumpRevisionLocked();  // 恢复状态变化
         if (ok) setStatusLocked(summaryLocked());
         if (!hadActive && !remoteCreds_.empty()) {
@@ -588,6 +598,7 @@ bool EngineTuner::apply(float scale, bool raiseLimit, std::string* error) {
     }
     scale_ = scale;
     raiseLimit_ = raiseLimit;
+    rpmIncreasePercent_ = rpmPercent;
     std::string applyError;
     if (!applyLocked(scale, raiseLimit, &applyError)) {
         if (guardStopped_) {
@@ -616,6 +627,7 @@ bool EngineTuner::release(std::string* error) {
     active_ = false;
     scale_ = 1.0f;
     raiseLimit_ = false;
+    rpmIncreasePercent_ = 0.0f;
     if (!activeObject_) {
         for (const auto& [address, state] : objects_) {
             if (state.hasWritten) { activeObject_ = address; break; }
@@ -870,8 +882,8 @@ bool EngineTuner::computeValuesLocked(const ObjectState& state, float scale, boo
     if (state.useCopyA) values.copyA = state.base.copyA * scale;
     if (state.useCopyB) values.copyB = state.base.copyB * scale;
     if (raiseLimit) {
-        values.rpmLimit = std::floor(state.base.rpmLimit * 1.10f + 0.5f);
-        values.rpmLimitNeutral = std::floor(state.base.rpmLimitNeutral * 1.10f + 0.5f);
+        values.rpmLimit = std::floor(state.base.rpmLimit * (1.0f + rpmIncreasePercent_ / 100.0f) + 0.5f);
+        values.rpmLimitNeutral = std::floor(state.base.rpmLimitNeutral * (1.0f + rpmIncreasePercent_ / 100.0f) + 0.5f);
     } else {
         values.rpmLimit = state.base.rpmLimit;
         values.rpmLimitNeutral = state.base.rpmLimitNeutral;
@@ -1098,13 +1110,18 @@ std::string EngineTuner::summaryLocked() const {
                         (double)it->second.base.torque * (double)scale_);
         }
     }
-    if (raiseLimit_) text += ", speed limit +10%";
+    if (raiseLimit_) text += fmt(", RPM limit +%.0f%%", (double)rpmIncreasePercent_);
     return text;
 }
 
 float EngineTuner::scale() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return scale_;
+}
+
+float EngineTuner::rpmIncreasePercent() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return rpmIncreasePercent_;
 }
 
 bool EngineTuner::raiseLimit() const {

@@ -201,7 +201,9 @@ public:
     void restoreAndDetach();
 
     // scale: 1.0 = 原厂扭矩；raiseLimit 为真时把转速上限提高 10%。
-    bool apply(float scale, bool raiseLimit, std::string* error);
+    bool apply(float scale, bool raiseLimit, std::string* error); // legacy +10% API
+    bool applyWithRpmIncrease(float scale, float rpmPercent, std::string* error);
+    float rpmIncreasePercent() const;
     // 写回当前对象的原厂值并停止保持。
     bool release(std::string* error);
     // 单次保持/复查：重新定位、处理换车、失败即恢复。后台线程每秒调用一次。
@@ -291,6 +293,7 @@ private:
     bool invalidatedRecord_ = false;
     float scale_ = 1.0f;
     bool raiseLimit_ = false;
+    float rpmIncreasePercent_ = 0.0f;
     uint64_t activeObject_ = 0;
     std::map<uint64_t, ObjectState> objects_;
 

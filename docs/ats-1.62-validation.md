@@ -34,3 +34,8 @@ An eight-byte insertion changes the truck's tail fields: permanent engine/transm
 This validates engine memory changes and restoration, not measured acceleration or a displayed HP label. A live truck-switch test and ETS2 1.62 validation were not performed. The upstream vehicle-following/restore logic is retained. ATS 1.62 economy layouts are unverified; automatic money/XP editing refuses this build. Optional local chassis catalogs and cockpit assets are not bundled.
 
 Offline regression: **496 passed, 0 failed**. The English interface smoke test created its window and rendered 30 frames successfully (exit 0). Full machine-specific diagnostic reports remain local.
+
+
+## Extended limits update
+
+Torque presets now include 3x, 4x and 5x; RPM increase is an independent 0–50% slider. The updated offline suite passes **504 checks, zero failures**. Added checks cover maximum torque/RPM, a non-preset +37% RPM setting, repeated maintenance, invalid/NaN inputs, independent RPM restoration, and importing/restoring a previous 5x/+50% session. The UI smoke test exits successfully. Maximum settings were validated with the memory test harness; they were not automatically applied to the user's running game.

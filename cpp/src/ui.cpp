@@ -131,6 +131,7 @@ void resetProcessState(AppState& app) {
         app.engineTuner->restoreAndDetach();
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
+        app.engineRpmPercent = 0;
         app.engineStateText = app.engineTuner->exportState();
         app.engineStatus = "is not enabled. Power adjustment directly rewrites engine data without scanning the memory.";
     }
@@ -1275,7 +1276,7 @@ void toggleAutoVehicleLock(AppState& app, bool fuel, bool enabled, bool electric
 // ---------- 发动机动力调节 ----------
 namespace {
 
-constexpr float kEngineScales[] = {1.0f, 1.25f, 1.50f, 2.00f};
+constexpr float kEngineScales[] = {1.0f, 1.25f, 1.50f, 2.00f, 3.00f, 4.00f, 5.00f};
 
 // 创建（并按需恢复上次运行的记录）动力调节器。
 EngineTuner& ensureEngineTuner(AppState& app) {
@@ -1309,15 +1310,16 @@ std::string multiplayerSummary() {
 
 }  // namespace
 
-void applyEnginePower(AppState& app, int option, bool raiseLimit) {
+void applyEnginePower(AppState& app, int option, bool raiseLimit, int rpmPercent) {
     if (!supportsVerifiedStructures(selectedGame())) {
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
+        app.engineRpmPercent = 0;
         app.engineStatus = structuralWriteBlockReason();
         logLine(app.engineStatus);
         return;
     }
-    const int index = (option < 0 || option > 3) ? 0 : option;
+    const int index = (option < 0 || option > 6) ? 0 : option;
     EngineTuner& tuner = ensureEngineTuner(app);
 
     if (index == 0 && !raiseLimit) {
@@ -1325,6 +1327,7 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
         const bool ok = tuner.release(&error);
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
+        app.engineRpmPercent = 0;
         app.engineStateText = tuner.exportState();
         app.engineStatus = ok ? "has restored its original power" : ("Power adjustment is turned off (" + error + "）");
         saveSettings(app);
@@ -1335,6 +1338,7 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
     if (!ensureAttached(app)) {
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
+        app.engineRpmPercent = 0;
         app.engineStatus = "has not been attached to the game process yet";
         return;
     }
@@ -1345,6 +1349,7 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
     if (mp.blocksWrite()) {
         app.enginePowerOption = 0;
         app.engineRaiseLimit = false;
+        app.engineRpmPercent = 0;
         app.engineStatus = "has refused to modify the engine data:" + mp.detail;
         logLine(app.engineStatus);
         return;
@@ -1358,8 +1363,9 @@ void applyEnginePower(AppState& app, int option, bool raiseLimit) {
                      engineGuardFor(app.pid));
     }
     std::string error;
-    const bool ok = tuner.apply(kEngineScales[index], raiseLimit, &error);    app.enginePowerOption = ok ? index : 0;
-    app.engineRaiseLimit = ok ? raiseLimit : false;
+    const bool ok = tuner.applyWithRpmIncrease(kEngineScales[index], raiseLimit ? (float)rpmPercent : 0.0f, &error);    app.enginePowerOption = ok ? index : 0;
+    app.engineRaiseLimit = ok && raiseLimit && rpmPercent > 0;
+    app.engineRpmPercent = ok && raiseLimit ? rpmPercent : 0;
     app.engineStateText = tuner.exportState();
     app.engineStatus = ok ? tuner.status() : ("Power adjustment failed:" + error);
     if (ok && mp.kind == MultiplayerKind::Unknown) {
@@ -3595,18 +3601,21 @@ void renderVehicleTabImpl(AppState& app) {
     if (app.engineTuner) {
         const auto status = app.engineTuner->status();
         if (app.engineTuner->active()) app.engineStatus = status;
-        else if (app.enginePowerOption != 0) {
+        else if (app.enginePowerOption != 0 || app.engineRaiseLimit) {
             app.enginePowerOption = 0;
             app.engineRaiseLimit = false;
+        app.engineRpmPercent = 0;
             app.engineStateText = app.engineTuner->exportState();
             app.engineStatus = status;
         }
     }
     if (app.engineDraftSourceOption != app.enginePowerOption ||
         app.engineDraftSourceRaiseLimit != app.engineRaiseLimit ||
+        app.engineDraftSourceRpmPercent != app.engineRpmPercent ||
         app.engineDraftPid != app.pid || app.engineDraftGame != selectedGame()) {
         app.engineDraftOption = app.engineDraftSourceOption = app.enginePowerOption;
         app.engineDraftRaiseLimit = app.engineDraftSourceRaiseLimit = app.engineRaiseLimit;
+        app.engineDraftRpmPercent = app.engineDraftSourceRpmPercent = app.engineRpmPercent;
         app.engineDraftPid = app.pid;
         app.engineDraftGame = selectedGame();
     }
@@ -3626,8 +3635,8 @@ void renderVehicleTabImpl(AppState& app) {
         ::ImGui::TextDisabled(telemetry ? "engine/gearbox/body/wheel" : "No valid vehicle data");
         ::ImGui::TableNextColumn();
         ::ImGui::TextDisabled("Current power multiplier");
-        ui::heading(fmt("%.2f ×", kEngineScales[std::clamp(app.enginePowerOption, 0, 3)]).c_str(), 29);
-        ::ImGui::TextDisabled(app.enginePowerOption == 0 ? "Stock baseline" : "Maintained in background");
+        ui::heading(fmt("%.2f ×", kEngineScales[std::clamp(app.enginePowerOption, 0, 6)]).c_str(), 29);
+        ::ImGui::TextDisabled(app.enginePowerOption == 0 && app.engineRpmPercent == 0 ? "Stock baseline" : "Maintained in background");
         ::ImGui::EndTable();
     }
     ui::endCard();
@@ -3647,19 +3656,21 @@ void renderVehicleTabImpl(AppState& app) {
         ::ImGui::TableNextColumn();
         ui::beginCard("##engine_power", "Engine tuning");
         ::ImGui::TextDisabled("Target multiplier / click Apply to activate");
-        ui::heading(fmt("%.2f ×", kEngineScales[std::clamp(app.engineDraftOption, 0, 3)]).c_str(), 36);
+        ui::heading(fmt("%.2f ×", kEngineScales[std::clamp(app.engineDraftOption, 0, 6)]).c_str(), 36);
         ::ImGui::SetNextItemWidth(-1);
-        ::ImGui::SliderInt("##power_draft", &app.engineDraftOption, 0, 3, "", ImGuiSliderFlags_NoInput);
-        static const char* presets[] = {"Stock", "1.25×", "1.50×", "2.00×"};
-        for (int i = 0; i < 4; ++i) {
+        ::ImGui::SliderInt("##power_draft", &app.engineDraftOption, 0, 6, "", ImGuiSliderFlags_NoInput);
+        static const char* presets[] = {"Stock", "1.25×", "1.50×", "2.00×", "3.00×", "4.00×", "5.00×"};
+        for (int i = 0; i < 7; ++i) {
             if (i) ui::nextButton(presets[i]);
             if (ui::choice(presets[i], app.engineDraftOption == i)) app.engineDraftOption = i;
         }
         ::ImGui::Spacing();
-        ::ImGui::Checkbox("RPM limit +10%", &app.engineDraftRaiseLimit);
+        ::ImGui::TextDisabled("RPM limit increase (0% = stock)");
+        ::ImGui::SetNextItemWidth(-1);
+        ::ImGui::SliderInt("##rpm_increase", &app.engineDraftRpmPercent, 0, 50, "+%d%%");
         ::ImGui::Spacing();
         if (ui::primaryButton("Apply tuning")) {
-            applyEnginePower(app, app.engineDraftOption, app.engineDraftRaiseLimit);
+            applyEnginePower(app, app.engineDraftOption, app.engineDraftRpmPercent > 0, app.engineDraftRpmPercent);
             app.engineDraftSourceOption = -1;
         }
         ui::nextButton("Restore stock");
